@@ -1,6 +1,8 @@
 # GRUB Manager reuse plan and architecture
 
-Research began **2026-10-04**; plan completed **2026-10-05**, America/Toronto. Status: proposed design, no implementation or bootloader operations performed.
+Research began **2026-10-04**; plan completed **2026-10-05**, America/Toronto. This is the original design record from before implementation.
+
+This is the original design record. Current implementation and test scope: [architecture](architecture.md), [Debian backend](debian-backend.md), [Phase 2 verification](phase2-verification.md).
 
 Companion: [ecosystem-audit.md](ecosystem-audit.md).
 
@@ -64,7 +66,7 @@ Initial reuse ledger:
 | P04 gallery utilities | Copyright 2026 Nightworker, MIT [LICENSE][P04-LICENSE] | Not selected |
 | P07 CLI utilities | Copyright 2026 Don Artkins, MIT [LICENSE][P07-LICENSE] | Not selected |
 | P10 utilities | Copyright 2026 droopi, MIT [LICENSE][P10-LICENSE] | Not selected |
-| P11 external preview | Copyright Sebastian Pipping; GPL-2.0-or-later [header][P11-grub2_theme_preview-__main__-py] | Planned external dependency |
+| P11 external preview | Copyright Sebastian Pipping; GPL-2.0-or-later [header][P11-grub2_theme_preview-__main__-py] | Integrated in Phase 2 as a separate external CLI; no vendored source |
 | Gorgeous-GRUB media/catalogue | No general grant found | No mirroring approved |
 | Bundled theme/font artwork | Package/file-specific, not yet selected | No asset reuse approved |
 

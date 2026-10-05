@@ -134,6 +134,10 @@ func Import(p system.Paths, source, recipeFile string) (model.Package, error) {
 	defer r.Close()
 	artifact := ""
 	switch {
+	case recipe.Source.Provider == "debian-installed":
+		if e = importDebian(p, r, recipe); e != nil {
+			return result, e
+		}
 	case builtin:
 		for name, b := range catalog.DemoFiles() {
 			if e = fsx.Write(r, name, b); e != nil {

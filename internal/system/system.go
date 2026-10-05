@@ -238,6 +238,14 @@ func Inspect(p Paths) (Report, error) {
 		q.Warnings = append(q.Warnings, "Theme assignments are complex or conflicting")
 	}
 	q.Warnings = append(q.Warnings, "File evidence cannot prove the active firmware bootloader or successful boot")
+	if !p.Fixture {
+		if q.Status == "ambiguous" {
+			q.Status = "AMBIGUOUS"
+		} else {
+			q.Status = "UNSUPPORTED"
+		}
+		q.Reason = "Activation requires the supported disposable Debian VM"
+	}
 	return q, nil
 }
 func RequireFixture(p Paths) (*os.Root, error) {

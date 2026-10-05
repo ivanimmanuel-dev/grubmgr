@@ -1,6 +1,8 @@
 # GRUB Manager ecosystem audit
 
-Research began **2026-10-04**; audit completed **2026-10-05**, America/Toronto. Status: research complete; implementation has not started.
+Research began **2026-10-04**; audit completed **2026-10-05**, America/Toronto. This is the completed research record from before implementation.
+
+This records the pre-implementation audit. Current behavior and test results are documented in [architecture](architecture.md) and [Phase 2 verification](phase2-verification.md).
 
 ## Decision
 

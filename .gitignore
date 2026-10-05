@@ -4,5 +4,6 @@
 /grubmgr.exe
 *.test
 coverage.out
+__pycache__/
 fixtures/**/.grubmgr/
 fixtures/**/boot/grub/themes/grubmgr/

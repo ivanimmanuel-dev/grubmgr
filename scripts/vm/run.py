@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""Boot tests in a newly created QEMU VM. Requires Linux, Go, QEMU and OVMF."""
+import argparse
+import hashlib
+import json
+import os
+import pathlib
+import re
+import shutil
+import socket
+import subprocess
+import tempfile
+import time
+import urllib.request
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+IMAGE = 'debian-13-genericcloud-amd64.qcow2'
+SHA512 = 'f46f0671a6e5bdec5291ab8972bae2f10e5408c2f64a74078f11efc2f06a436a9d0313ed50e0472542eeabf780e9f7c792ac0a314c6c20507fcd9fd81b468c3d'
+URL = 'https://cloud.debian.org/images/cloud/trixie/latest/' + IMAGE
+
+
+def bootstrap_host_key(pid, port, known):
+    """Trust the first key only after proving this QEMU owns the loopback listener."""
+    address = '0100007F:%04X' % port
+    inodes = {row.split()[9] for row in pathlib.Path('/proc/net/tcp').read_text().splitlines()[1:]
+              if row.split()[1] == address and row.split()[3] == '0A'}
+    owned = set()
+    try:
+        for fd in pathlib.Path('/proc', str(pid), 'fd').iterdir():
+            try: owned.add(os.readlink(fd))
+            except FileNotFoundError: pass
+    except FileNotFoundError:
+        return
+    if not any('socket:['+inode+']' in owned for inode in inodes):
+        return
+    result = subprocess.run(['ssh-keyscan','-T','5','-t','ed25519','-p',str(port),'127.0.0.1'],capture_output=True,text=True,timeout=10)
+    for line in result.stdout.splitlines():
+        if re.fullmatch(r'\[127\.0\.0\.1\]:'+str(port)+r' ssh-ed25519 [A-Za-z0-9+/=]+',line):
+            known.write_text(line+'\n')
+            known.chmod(0o600)
+            return
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--tools-root', type=pathlib.Path, default=pathlib.Path('/'))
+    parser.add_argument('--go', default='go')
+    args = parser.parse_args()
+    if os.name != 'posix' or os.geteuid() == 0:
+        raise SystemExit('Run as an ordinary Linux user. Guest setup uses sudo only inside QEMU.')
+    tools = args.tools_root.resolve()
+    env = os.environ.copy()
+    if tools != pathlib.Path('/'):
+        env['LD_LIBRARY_PATH'] = str(tools / 'usr/lib/x86_64-linux-gnu')
+    bins = {name: tools / 'usr/bin' / name for name in ['qemu-system-x86_64', 'qemu-img', 'genisoimage']}
+    firmware = tools / 'usr/share/OVMF'
+    for file in [*bins.values(), firmware/'OVMF_CODE_4M.secboot.fd', firmware/'OVMF_VARS_4M.fd']:
+        if not file.is_file():
+            raise SystemExit('Missing dependency: ' + str(file))
+    for command in [args.go, 'ssh', 'scp', 'ssh-keygen', 'ssh-keyscan']:
+        if not shutil.which(command):
+            raise SystemExit('Missing executable: ' + command)
+    cache = ROOT/'work/vm-images'
+    cache.mkdir(parents=True, exist_ok=True)
+    image = cache/IMAGE
+    if not image.exists():
+        partial = cache/(IMAGE+'.part')
+        with urllib.request.urlopen(URL, timeout=60) as source, partial.open('wb') as dest:
+            shutil.copyfileobj(source, dest)
+        partial.rename(image)
+    with image.open('rb') as stream:
+        if hashlib.file_digest(stream, 'sha512').hexdigest() != SHA512:
+            raise SystemExit('Debian image digest changed. Review a new image pin; do not bypass this check.')
+    runs = ROOT/'work/vm-runs'
+    runs.mkdir(exist_ok=True)
+    run = pathlib.Path(tempfile.mkdtemp(prefix='debian13-', dir=runs))
+    print('Evidence directory:', run, flush=True)
+    # Runtime secrets/sockets stay on a native Linux filesystem, including in WSL.
+    with tempfile.TemporaryDirectory(prefix='grubmgr-vm-') as runtime_dir:
+        runtime = pathlib.Path(runtime_dir)
+        key = runtime/'key'
+        subprocess.run(['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(key)], check=True)
+        public = key.with_suffix('.pub').read_text().strip()
+        (run/'user-data').write_text('''#cloud-config
+hostname: grubmgr-disposable
+users:
+  - name: tester
+    groups: [sudo]
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - '''+public+'''
+ssh_pwauth: false
+disable_root: true
+package_update: true
+packages: [pkexec, polkitd, desktop-base, fonts-unifont, grub-efi-amd64-bin, grub2-common, grub-theme-starfield, xorriso, mtools, qemu-system-x86, ovmf, bubblewrap, python3-venv]
+''')
+        (run/'meta-data').write_text('instance-id: '+run.name+'\nlocal-hostname: grubmgr-disposable\n')
+        def local(argv):
+            return subprocess.run([str(x) for x in argv], check=True, env=env, cwd=ROOT)
+        local([bins['genisoimage'], '-quiet', '-output', run/'seed.iso', '-volid', 'cidata', '-joliet', '-rock', run/'user-data', run/'meta-data'])
+        local([bins['qemu-img'], 'create', '-f', 'qcow2', '-F', 'qcow2', '-b', image, run/'disk.qcow2', '16G'])
+        shutil.copyfile(firmware/'OVMF_VARS_4M.fd', run/'vars.fd')
+        with socket.socket() as s:
+            s.bind(('127.0.0.1', 0))
+            port = s.getsockname()[1]
+        qemu = [bins['qemu-system-x86_64'], '-machine', 'q35,smm=on', '-accel', 'tcg,thread=multi', '-smp', '2', '-m', '2048',
+                '-L', tools/'usr/share/qemu', '-smbios', 'type=1,product=grubmgr-disposable-v1',
+                '-drive', f'if=pflash,format=raw,readonly=on,file={firmware}/OVMF_CODE_4M.secboot.fd',
+                '-drive', f'if=pflash,format=raw,file={run}/vars.fd',
+                '-drive', f'if=virtio,format=qcow2,file={run}/disk.qcow2',
+                '-drive', f'if=virtio,format=raw,readonly=on,file={run}/seed.iso',
+                '-netdev', f'user,id=net0,hostfwd=tcp:127.0.0.1:{port}-:22', '-device', 'virtio-net-pci,netdev=net0,romfile=',
+                '-device', f'VGA,romfile={tools}/usr/share/seabios/vgabios-stdvga.bin',
+                '-display', 'none', '-serial', f'file:{run}/console.log', '-monitor', 'none']
+        (run/'launch.json').write_text(json.dumps([str(x) for x in qemu], indent=2))
+        with (run/'qemu.log').open('wb') as log:
+            proc = subprocess.Popen([str(x) for x in qemu], stdout=log, stderr=log, env=env)
+        known = runtime/'known_hosts'
+        opts = ['-i', str(key), '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', '-o', 'StrictHostKeyChecking=yes', '-o', 'UserKnownHostsFile='+str(known)]
+        def ssh(command, check=True):
+            result = subprocess.run(['ssh', *opts, '-p', str(port), 'tester@127.0.0.1', command], capture_output=True, text=True, timeout=2400)
+            with (run/'host-commands.jsonl').open('a') as out:
+                out.write(json.dumps({'command':command, 'exit':result.returncode, 'stdout':result.stdout, 'stderr':result.stderr})+'\n')
+            if check and result.returncode:
+                raise RuntimeError(command+': '+result.stderr)
+            return result
+        def ready(previous=None):
+            until = time.monotonic()+900
+            while time.monotonic()<until:
+                if proc.poll() is not None:
+                    raise RuntimeError('QEMU exited; see qemu.log')
+                if not known.exists():
+                    console = (run/'console.log').read_text(errors='replace') if (run/'console.log').exists() else ''
+                    keys = re.findall(r'ssh-ed25519 [A-Za-z0-9+/=]+', console)
+                    if keys:
+                        known.write_text(f'[127.0.0.1]:{port} '+keys[-1]+'\n')
+                    else:
+                        bootstrap_host_key(proc.pid, port, known)
+                if known.exists():
+                    result = ssh('cat /proc/sys/kernel/random/boot_id', False)
+                    if result.returncode == 0 and result.stdout.strip() != previous:
+                        return result.stdout.strip()
+                time.sleep(5)
+            raise RuntimeError('VM boot timed out')
+        def reboot():
+            before = ssh('cat /proc/sys/kernel/random/boot_id').stdout.strip()
+            ssh('sudo reboot', False)
+            ready(before)
+        def flow(stage):
+            print('VM stage:', stage, flush=True)
+            ssh('python3 /home/tester/grubmgr-test/guest-flow.py '+stage)
+        try:
+            ready()
+            ssh('cloud-init status --wait')
+            ssh('test "$(cat /sys/class/dmi/id/product_name)" = grubmgr-disposable-v1 && mkdir -p /home/tester/grubmgr-test/evidence')
+            buildenv = env.copy()
+            buildenv['CGO_ENABLED']='0'
+            for name, package in [('grubmgr-phase2','grubmgr'),('grubmgr-helper-phase2','grubmgr-helper'),('grubmgr-preview-qemu','grubmgr-preview-qemu')]:
+                subprocess.run([args.go,'build','-o',str(run/name),'./cmd/'+package],check=True,cwd=ROOT,env=buildenv)
+            subprocess.run([args.go,'test','-c','-tags','grubmgr_vmtest','-o',str(run/'grubmgr-vm-tests'),'./internal/debian'],check=True,cwd=ROOT,env=buildenv)
+            files=[run/x for x in ['grubmgr-phase2','grubmgr-helper-phase2','grubmgr-preview-qemu','grubmgr-vm-tests']]
+            files += [ROOT/'packaging/io.github.ivanimmanuel.grubmgr.policy',ROOT/'scripts/vm/guest-setup.sh',ROOT/'scripts/vm/guest-flow.py']
+            subprocess.run(['scp',*opts,'-P',str(port),*[str(x) for x in files],'tester@127.0.0.1:/home/tester/grubmgr-test/'],check=True)
+            ssh('cd /home/tester/grubmgr-test && sudo sh guest-setup.sh')
+            flow('activate');reboot();flow('after-activation-boot')
+            ssh('sudo apt-get install -y --no-install-recommends linux-image-amd64 > /home/tester/grubmgr-test/evidence/kernel-install.log 2>&1')
+            flow('rollback');reboot();flow('after-rollback-boot')
+            ssh('sudo /home/tester/grubmgr-test/grubmgr-vm-tests -test.v -test.timeout=30m > /home/tester/grubmgr-test/evidence/failures.log 2>&1')
+            ssh('sudo python3 -m venv /usr/local/lib/grub2-theme-preview && sudo /usr/local/lib/grub2-theme-preview/bin/pip install grub2-theme-preview==2.10.0 > /home/tester/grubmgr-test/evidence/preview-install.log 2>&1 && sudo ln -s /usr/local/lib/grub2-theme-preview/bin/grub2-theme-preview /usr/local/bin/grub2-theme-preview')
+            flow('starfield');reboot();flow('after-starfield-boot')
+            (run/'PASS').write_text('All requested VM stages passed. See evidence and console.log.\n')
+        finally:
+            if known.exists():
+                subprocess.run(['scp',*opts,'-P',str(port),'-r','tester@127.0.0.1:/home/tester/grubmgr-test/evidence',str(run)],check=False)
+                ssh('sudo poweroff',False)
+            try:
+                proc.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                proc.terminate()
+                try: proc.wait(timeout=10)
+                except subprocess.TimeoutExpired: proc.kill();proc.wait()
+        print('VM tests passed:',run,flush=True)
+
+
+if __name__ == '__main__':
+    main()

@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"grubmgr/internal/catalog"
+	"grubmgr/internal/debian"
 	"grubmgr/internal/fetch"
 	"grubmgr/internal/model"
 	"grubmgr/internal/output"
@@ -20,25 +21,25 @@ import (
 	"strings"
 )
 
-const Version = "0.1.0"
-const help = `GRUB Manager (grubmgr) 0.1.0 — community theme package manager
+const Version = "0.2.0-rc.1"
+const help = `GRUB Manager (grubmgr)
 
 Usage: grubmgr [--json] [--log-json] [--root FIXTURE] COMMAND
 
   version | help
   doctor                            Read-only system inspection
-  search [QUERY] | info ID           Browse shipped reviewed/discovery entries
-  fetch SOURCE [--recipe FILE]       Import data into the immutable local store
+  search [QUERY] | info ID           Browse themes
+  fetch SOURCE [--recipe FILE]       Import a theme package
   validate PATH_OR_ID [--recipe FILE]
   list | status | history           Read receipts and transaction history
   plan install|switch|remove ID [--variant ID]
-  plan rollback TRANSACTION         Read-only plan; returns a p1.* token
-  apply TOKEN                       Apply only to a marked Debian fixture root
-  recover                           Recover interrupted fixture transactions
-  preview ID                        Detect optional renderer; explicit refusal in 0.1
+  plan rollback TRANSACTION         Plan a previous theme selection
+  apply TOKEN                       Apply a fixture or supported VM plan
+  recover                           Recover an interrupted transaction
+  preview ID                        Preview with optional GRUB/QEMU tools
 
-Real bootloader modification is disabled. No GRUB utility or theme script is run.
-Install stages assets; switch activates an installed revision. Planning never writes.
+Physical-machine activation is disabled. Real activation requires the Debian test VM.
+Install copies assets; switch selects an installed theme. Planning makes no changes.
 `
 
 type options struct {
@@ -130,11 +131,68 @@ func execute(o options) (any, error) {
 		return help, need(0)
 	}
 	if command == "version" {
-		return map[string]any{"version": Version, "go": runtime.Version(), "real_activation": false}, need(0)
+		return map[string]any{"version": Version, "go": runtime.Version(), "activation": "fixtures and the Debian test VM only"}, need(0)
 	}
 	p, e := system.Locations(o.root)
 	if e != nil {
 		return nil, e
+	}
+	if !p.Fixture && debian.Available() {
+		switch command {
+		case "doctor":
+			if e = need(0); e != nil {
+				return nil, e
+			}
+			var report debian.Environment
+			e = debian.Call(debian.Request{Operation: "inspect"}, &report)
+			return report, e
+		case "plan":
+			if e = need(2); e != nil {
+				return nil, e
+			}
+			req := debian.Request{Operation: "plan", Action: planner.Request{Action: a[0], Target: canonical(a[1]), Variant: o.variant}}
+			if a[0] == "rollback" {
+				req.Action.Target = a[1]
+			}
+			if a[0] == "install" {
+				req.Package, e = debian.LoadBundle(p, req.Action.Target)
+				if e != nil {
+					return nil, e
+				}
+				req.Action.Target = req.Package.Manifest.Revision
+			}
+			var plan planner.Plan
+			e = debian.Call(req, &plan)
+			return plan, e
+		case "apply":
+			if e = need(1); e != nil {
+				return nil, e
+			}
+			token, err := debian.DecodeToken(a[0])
+			if err != nil {
+				return nil, err
+			}
+			req := debian.Request{Operation: "apply", Plan: a[0]}
+			if token.Request.Action == "install" {
+				req.Package, e = debian.LoadBundle(p, token.Revision)
+				if e != nil {
+					return nil, e
+				}
+			}
+			var tx state.Transaction
+			e = debian.Call(req, &tx)
+			if e != nil {
+				return nil, e
+			}
+			return map[string]any{"transaction": tx.ID, "phase": tx.Phase, "events": tx.Events}, nil
+		case "recover", "history", "status":
+			if e = need(0); e != nil {
+				return nil, e
+			}
+			var value any
+			e = debian.Call(debian.Request{Operation: command}, &value)
+			return value, e
+		}
 	}
 	switch command {
 	case "doctor":
@@ -279,6 +337,9 @@ func execute(o options) (any, error) {
 		if e != nil {
 			return nil, e
 		}
+		if !p.Fixture {
+			return preview.Capture(state.Content(p, pkg.Manifest.Revision), filepath.Join(p.Cache, "previews"), pkg.Manifest, o.variant)
+		}
 		report, e := system.Inspect(p)
 		if e != nil {
 			return nil, e
@@ -296,6 +357,8 @@ func canonical(id string) string {
 }
 func render(w io.Writer, value any) {
 	switch v := value.(type) {
+	case debian.Environment:
+		fmt.Fprintf(w, "Support: %s\nBackend: %s\nGRUB: %s\nFirmware: %s\nLayout: %s\n%s\n", v.Status, v.Backend, v.GRUBVersion, v.Firmware, v.Layout, v.Reason)
 	case string:
 		fmt.Fprint(w, v)
 	case system.Report:
@@ -309,7 +372,7 @@ func render(w io.Writer, value any) {
 		}
 		fmt.Fprintln(w, validate.Summary(v))
 	case planner.Plan:
-		fmt.Fprintf(w, "PLAN %s\n\n%s %s@%s\nArtifact SHA256: %s\nTree SHA256: %s\nDestination: %s\nTheme: %q -> %q\nValidation: %s\nCompatibility: %s\nPrivileges: %s\nWould invoke (never executed in this build): %v\nApplicable: %t — %s\n", v.ID, v.Request.Action, v.ThemeID, v.Revision, v.ArtifactSHA256, v.TreeSHA256, v.Destination, v.BeforeTheme, v.AfterTheme, v.Validation, v.Compatibility, v.Privileges, v.Generator, v.Applicable, v.Reason)
+		fmt.Fprintf(w, "PLAN %s\n\n%s %s@%s\nArtifact SHA256: %s\nTree SHA256: %s\nDestination: %s\nTheme: %q -> %q\nValidation: %s\nCompatibility: %s\nPrivileges: %s\nGenerator: %v\nApplicable: %t — %s\n", v.ID, v.Request.Action, v.ThemeID, v.Revision, v.ArtifactSHA256, v.TreeSHA256, v.Destination, v.BeforeTheme, v.AfterTheme, v.Validation, v.Compatibility, v.Privileges, v.Generator, v.Applicable, v.Reason)
 		for _, s := range v.Add {
 			fmt.Fprintln(w, "+", s)
 		}

@@ -1,33 +1,33 @@
-# Security model and explicit limits
+# Security model
 
-The implemented boundary is unprivileged package handling plus a synthetic-root backend. **There is no real activation path, Polkit policy, shell execution, GRUB invocation or QEMU invocation in the product.** A theme is data. No upstream installer was used to build/test this project.
+Themes are data. The CLI does not run community installers, source theme files as shell, or elevate itself. Real activation is enabled only for the explicitly marked disposable Debian VM. Detection on another system does not enable writes.
 
-## Inputs and containment
+## User inputs
 
-Catalogue entries are schema data. Unknown entries are browse-only; reviewed remote artifacts additionally require an exact recipe URL and SHA-256. HTTPS and hashes provide transport/content integrity; a reviewed recipe is the trust anchor. A hash alone does not prove author identity, license ownership or safe rendering. Remote catalogue signing and authentication frameworks are deferred.
+Archives and local imports reject links, special files, traversal, case collisions and oversized members. Image/font decoding and theme parsing have bounds. HTTPS imports need an exact URL and SHA-256 recipe. A digest proves content identity, not authorship or permission. Unknown-license entries remain unavailable for activation.
 
-Archive extraction uses Go decoders into ordinary-user staging. Portable, case-folded path checks are applied before writes. All links and special files are rejected, with member/byte/image limits. Local imports get the same inventory/path checks. Theme syntax is parsed as a bounded subset and never sourced as shell.
+`--root` inspects only its marked synthetic fixture and never falls back to host `/boot`, `/etc` or firmware. It must not point to a real mounted installation. Fixture stores are not protected from another process running as their owner.
 
-OS inspection uses `os.Root` relative handles. With `--root`, no fallback reads the host's `/etc`, `/boot`, `/proc`, firmware paths or utility search path. A missing fixture value is unknown. Application requires an explicit non-volume root with exact `.grubmgr-fixture` marker and conventional Debian evidence. Parent symlinks and multiply linked mutation targets are refused. Rooted operations prevent link traversal outside the fixture; Windows truncation checks the opened handle's link count first.
+## Privileged boundary
 
-Explicitly supplied local input paths and recipe files may be outside the fixture: these are requested data inputs, not OS inspection or mutation destinations. Cache/state paths beneath the fixture are checked for links before opening. SQLite uses an ordinary pathname API, so fixture/store directories must be owned and controlled by the calling user. The system does not promise protection against a hostile process running as that same user concurrently replacing the store/root namespace. A future privileged helper must provide an independently enforced boundary against user-controlled state and race conditions.
+The CLI invokes only `/usr/bin/pkexec /usr/libexec/grubmgr-helper`. The installed helper accepts a bounded JSON request with fixed operations: inspect, status, history, plan, apply and recover. There are no executable, shell, destination, root-override or failure-injection fields. `PKEXEC_UID` must identify an ordinary user; authorization is enforced by the installed Polkit action and protected executable.
 
-`--root` must point to disposable synthetic data. It is not permission to operate on a mounted real system, and the marker is not a security credential. Never add the marker to a real system tree. The build does not install bootloader binaries or modify EFI/NVRAM, BLS, Secure Boot policy, kernel arguments, boot entry order or native package repositories.
+The helper independently checks package identity, every byte, the compiled recipe/content pin, revision, destinations, root ownership, links and current configuration fingerprints. Caller-supplied reviewed/license flags cannot approve a package. It writes its own protected cache, receipts and recovery snapshots. The ordinary-user database is not authoritative.
 
-## Plan and transaction integrity
+The production Polkit policy requires administrator authentication for an active session. The VM harness installs a separate tester-only authorization rule **inside the disposable guest**. Do not install that rule on a workstation.
 
-Planning opens receipts read-only, does not download, and does not create plan files. Plan tokens contain a typed request and a state fingerprint. The fixture backend recomputes destinations and content checks under an exclusive operation lock. Tokens cannot supply programs, raw shell, arbitrary destination paths or replacement bytes. Stale/root-mismatched plans are refused.
+Only fixed Debian generator/checker paths run, with a cleared environment, bounded output and timeout. Root-owned Debian configuration scripts execute as part of the installed distro generator; these are trusted administrative inputs, not theme package code. Dpkg locks coordinate package updates. Only `GRUB_THEME` changes; the helper does not reinstall GRUB, alter kernel arguments/default OS/timeout, or write partitions, EFI variables or Secure Boot policy.
 
-The phase journal stores snapshots before mutation, verifies staged assets and candidate bytes, and records receipt changes separately. Incomplete/failed journals block new plans. Immediate rollback restores only a state matching the before/expected hashes; external drift requires recovery review. Old active assets are retained. Later user rollback generates the fixture theme block around the current configuration instead of writing an obsolete whole-file boot snapshot.
+Immediate recovery checks original/expected hashes and verifies restored bytes. Conflicts retain the root journal and report `recovery_required`. Later rollback regenerates with the current boot inventory. Journals may contain configuration text and are not public artifacts.
 
-The fixture lock serializes grubmgr apply/recover, and a state operation lock serializes receipt publication with fetch. Neither locks OS package managers, protects against malicious same-user writers or certifies abrupt power-loss behavior. Windows writes are journaled but not atomic. Restoration errors are reported as `recovery_required`; success is never inferred merely from attempting a restore. See architecture/testing for stale-lock handling and limits of interruption tests.
+## Preview
 
-## Preview and privilege
+Preview runs as an ordinary Linux user through Bubblewrap. It has no real `/boot`, host home, host disks or network. The renderer gets a generated menu; a fixed adapter constrains QEMU drives, memory and time. Missing tools or unavailable namespaces produce a diagnostic rather than falling back to an unsandboxed launch. Read-only `/usr` exposes installed system programs and public assets. A QEMU image cannot certify a physical boot or make malicious renderer/firmware bugs impossible.
 
-`grub2-theme-preview` remains a separately installed optional dependency. `preview` currently reports missing dependencies or explicitly refuses execution when they are present, because the sandbox adapter is not yet validated. No catalogue arguments reach QEMU, no host disks are attached, and no renderer runs as root.
+## Limits
 
-The next real backend needs a root-owned fixed helper, narrow Polkit actions, independent package/path validation, metadata/label preservation, bounded subprocesses with fixed environments, native-update coordination, candidate GRUB checks, recovery journals outside user control, and disposable-VM boot tests. Do not turn the fixture generator into a production backend by removing its gate.
+The supported backend requires a root-owned VM marker and matching QEMU SMBIOS value as well as Debian/version/layout checks. Those are accidental-use guards, not a defense against an administrator deliberately bypassing them. Ubuntu, BIOS, Secure Boot enabled, separate `/boot`, Btrfs, immutable systems, customizer/snapshot integrations and untested GRUB versions are refused.
 
-## License boundary
+SIGKILL recovery is tested at selected journal boundaries; arbitrary power loss at every syscall is not certified. Another root process can bypass advisory locks. No automatic repair after an unbootable physical system is promised. A privileged-helper review remains a gate before expanding beyond test VMs.
 
-MIT applies to original grubmgr code and synthetic assets. Dependency notices are retained under `third_party/licenses`. The package importer preserves upstream notices but does not manufacture missing grants. No Gorgeous-GRUB assets/descriptions, community theme artwork, GPL renderer source, or manager installer code is bundled. The source-reuse ledger documents actual imports only.
+MIT covers original code and synthetic assets. Imported theme artwork/fonts retain their own licenses and notices. The GPL preview renderer remains a separately installed program. Grub of Tsushima lacks confirmed permissions for its third-party artwork/fonts and has no approved activation recipe.

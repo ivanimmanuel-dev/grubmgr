@@ -25,6 +25,8 @@ The following are linked as **unmodified Go modules**, pinned in `go.mod` and in
 
 The dependency license checker detects changed/missing notices and module/version additions. It is an inventory gate, not an automated legal opinion or a substitute for reviewing changes. If a target/dependency is added, inspect embedded notices as well as top-level licenses before releasing binaries. Development-only transitive tools in the module cache and the portable Go compiler are not included in the release archives.
 
-`grub2-theme-preview` is a future independent optional external CLI (upstream GPL-2.0-or-later); neither it nor QEMU/firmware is distributed or executed here. Separately packaging those tools requires their own licenses and compliance review.
+`grub2-theme-preview` 2.10.0 is an optional, separately installed external CLI (Copyright Sebastian Pipping; GPL-2.0-or-later). The preview adapter invokes it in a sandbox. Its implementation, QEMU, OVMF, xorriso and mtools are not distributed with grubmgr. The VM test harness installs those dependencies separately.
+
+The reviewed `debian/starfield` recipe imports Debian's installed `grub-theme-starfield` 2.12-9+deb13u2. No Starfield assets are bundled in this repository. Every imported revision preserves `theme.txt`, `README`, `DEBIAN-COPYRIGHT`, `FONT-COPYRIGHT` and `GPL-3`. The theme layout is MIT, artwork CC-BY-SA-3.0, and DejaVu font data Bitstream-Vera with public-domain changes, as recorded in those notices. See [the recipe and content pin](docs/debian-backend.md).
 
 The builtin demo's full MIT license stays inside every imported and installed revision. Imported theme notices are never replaced with grubmgr's license. Unknown rights remain unknown. The catalogue's Minegrub entry is an independently written factual project link and is browse-only; it confers no asset-copying permission.

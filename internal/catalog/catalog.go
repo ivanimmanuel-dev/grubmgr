@@ -12,8 +12,9 @@ import (
 var resources embed.FS
 
 type Entry struct {
-	Recipe model.Recipe `json:"recipe"`
-	Status string       `json:"status"`
+	Recipe     model.Recipe `json:"recipe"`
+	Status     string       `json:"status"`
+	TreeSHA256 string       `json:"tree_sha256,omitempty"`
 }
 
 func Search(query string) ([]Entry, error) {

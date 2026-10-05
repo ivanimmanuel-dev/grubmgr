@@ -1,63 +1,47 @@
-# GRUB Manager 0.1 architecture
+# Architecture
 
-Implementation decisions, 2026-10-05. The earlier audit/reuse plan is historical design evidence; this document describes the implemented subset.
-
-## Boundaries
+The CLI handles arguments and output. Packages under `internal/` hold ingestion, validation, planning, receipts, transactions and preview. The fixture engine remains available through `--root`; the experimental Debian engine lives in `internal/debian`.
 
 ```mermaid
 flowchart TD
-  CLI[CLI frontend] --> Core[Shared internal packages]
-  Core --> Catalog[Shipped catalogue and recipes]
-  Catalog --> Fetch[Bounded HTTPS / local data import]
-  Fetch --> Validation[Inventory, hashes and static validation]
-  Validation --> Store[Immutable package store and SQLite receipts]
-  Store --> Plan[Read-only plan and precondition token]
-  Plan --> Fixture[Explicit marked Debian fixture backend]
-  Fixture --> Journal[Durable phase journal and snapshots]
-  Journal --> Files[Rooted fixture assets and settings]
+  CLI[Ordinary-user CLI] --> Fetch[Fetch and validate theme data]
+  Fetch --> User[User package store]
+  CLI --> Preview[Sandboxed external preview]
+  User --> Polkit[Polkit: fixed helper]
+  Polkit --> Check[Verify recipe, bytes and system]
+  Check --> Root[Root-owned cache and SQLite journal]
+  Root --> Candidate[Generate and check candidate]
+  Candidate --> Activate[Atomic configuration replacement]
 ```
 
-`cmd/grubmgr` contains only process entry/exit. `internal/cli` handles flags and presentation. `model`, `catalog`, `fetch`, `archive`, `fsx`, `validate`, `pf2`, `system`, `planner`, `state`, `backend`, `transaction`, and `preview` expose ordinary Go APIs for a later frontend. No module executes an external process. The build-time license checker is separate from the product.
+Go supplies archive, compression, TLS, hashing, JSON and image decoding. `modernc.org/sqlite` supplies receipts and journals. Original code is MIT. No theme-manager installer or GPL renderer implementation is bundled.
 
-The executable is MIT. Go supplies archive, compression, hashing, HTTP/TLS, image and JSON primitives. `modernc.org/sqlite` supplies a CGo-free SQLite driver. PF2 inspection and domain behavior were independently written: no ecosystem-manager source was adapted. The candidate upstream linter did not justify importing its unrelated installer or restrictive layout assumptions.
+## Packages and plans
 
-## Files and identity
+A revision identifies its recipe, file inventory and content digest. Fetch stages files beside the final store before promotion. All assets and notices are retained. The user store is owned by the caller; the helper never trusts its database or paths. It receives bounded file bytes, checks the recipe against its compiled catalog, and reconstructs the inventory independently.
 
-| Location, relative to the chosen store | Role |
-| --- | --- |
-| data/packages/REVISION/content | Original data, including license notices |
-| data/packages/REVISION/manifest.json | Immutable manifest evidence |
-| data/.stage-* | Bounded ordinary-user staging, same filesystem as final package store |
-| state/state.sqlite | Receipts, selected variants, installed/active/pinned flags and journals |
-| config | Reserved configuration location; no configuration loader yet |
-| cache | Reserved cache location; no persistent catalogue refresh yet |
+The Debian helper keeps data and journals under `/var/lib/grubmgr`, protected from ordinary users. Installed revisions live under `/boot/grub/themes/grubmgr/NAMESPACE/NAME/REVISION`. Removed and failed revisions are retained; garbage collection is deferred. A failed root-cache import can leave an unused staging directory, never a partially published revision.
 
-The fixture equivalents are under `ROOT/.grubmgr`. Installed fixture assets live at `ROOT/boot/grub/themes/grubmgr/NAMESPACE/NAME/REVISION`. Every package file is copied, including notices. Versions are never overwritten. Content is checked again when planning and when staging/switching. The store is logically immutable; it is not protected against its owning user. Content modification is detected, not prevented by filesystem permissions.
+Planning reads the current environment and receipts. A token binds the action, target, variant, package revision and system fingerprint. Apply takes the grubmgr and dpkg locks, rebuilds the plan, and rejects a changed token. Tokens carry no command or destination path. Plans themselves create no state files. Access to the root store, including planning and status, goes through Polkit in this first implementation.
 
-SQLite uses full synchronous commits and rollback-journal mode. Read paths use `mode=ro` and do not create a missing database. SQL transactions make receipt/journal updates consistent inside the database; they do not make filesystem operations atomic. A directory promotion preceding a receipt update can leave an orphan after a crash; a later identical fetch verifies and adopts that content. Interrupted staging directories may need manual fixture cleanup; automatic GC is deferred.
+`install` copies assets and records them. `switch` selects an installed revision. `remove` deactivates an active revision and retains its files. Later rollback selects the retained theme that preceded a committed transaction. An unmanaged prior theme is refused because its assets cannot be verified.
 
-## Planning
+## Transactions
 
-The planner reads existing packages and current system evidence. A token is base64url JSON containing schema, action, target, variant and a SHA-256 fingerprint of absolute root identity, system report, current configuration/settings, receipts and transaction history. No file is created by planning. Apply reconstructs the entire plan under its transaction lock and compares the complete token. It never accepts caller-provided destinations, generator arguments, replacement bytes or commands.
+Both engines use `planned → prepared → assets_staged → settings_staged → candidate_validated → activated → committed` and the existing SQLite transaction records. SQLite uses full synchronous commits; database commits do not make filesystem changes atomic.
 
-Plans show hashes, revision, variant request, exact settings before/after, destination, files added/removed, retained assets, validation/compatibility, future generator intent, privileges, and recovery scope. Install changes assets/receipt only. Switch changes the theme setting; remove deactivates an active theme but retains its files. Later rollback restores the managed theme selection from before the selected committed transaction. It preserves current boot entries; an unmanaged previous theme is refused because its retained assets cannot be proved.
+The Debian backend changes only `GRUB_THEME` in `/etc/default/grub`. It runs `/usr/sbin/grub-mkconfig -o /boot/grub/.grubmgr-TRANSACTION.cfg`, checks the candidate with `/usr/bin/grub-script-check`, verifies the theme reference and Linux entries, and replaces `/boot/grub/grub.cfg` by a synced rename. Existing file owner and permissions are preserved. Unexpected extended attributes are refused.
 
-Without a marked conventional Debian fixture the plan is read-only and `applicable=false`. Merely finding a GRUB utility never enables application. Broad version selection is deliberately absent: more than one revision requires an explicit digest.
+The journal records original bytes and expected written hashes before activation. Immediate recovery restores exact bytes only when the current files match the original or expected state, then verifies restoration. A conflicting administrator edit produces `recovery_required`. Later rollback regenerates from current kernels instead of restoring an old whole-file configuration.
 
-## Fixture transactions
+Root-owned assets are retained on errors, including when an external edit may refer to them. The helper coordinates dpkg updates using POSIX locks and its own operations using `flock`; process death releases those locks. A root administrator can still change files concurrently. Fingerprint checks detect observed drift but are not isolation from another root process.
 
-Normal events: `planned → prepared → assets_staged → settings_staged → candidate_validated → activated → committed`.
+## Fixture differences
 
-Failure events: `recovering → rolled_back`, or `recovering → recovery_required` when restoration cannot be verified. Tests inject failures at each phase; the committed fault is injected immediately before the final database commit. A completed commit is not reported as a failed operation.
+Fixtures use synthetic generation and user-owned stores. Linux fixture replacement uses rename; Windows fixture writes are journaled but not atomic. Fixture locks use exclusive files and may need manual removal after a killed process. These limits do not describe the separate Debian helper. No fixture success proves a boot.
 
-The journal includes exact original settings/configuration bytes, original receipts, expected post-write hashes, owned destination and whether assets were newly created. It is written before mutations. Assets already active are never deleted on a failed switch. New incomplete assets are removed through a rooted filesystem handle. Settings/configuration recovery only accepts original or expected written hashes; conflicting external edits lead to a visible recovery-required state. Recover can be retried after the conflict is resolved.
+## Preview
 
-The synthetic generator preserves existing bytes and adds/replaces one manager-owned fixture block. It verifies the expected generated bytes, **not real GRUB syntax**. An unchanged menuentry count is never used as evidence of safety.
+The optional `grub2-theme-preview` 2.10.0 process constructs a boot image from a generated menu. Bubblewrap exposes read-only system tools and one theme, a private temporary filesystem, and one output directory. The fixed QEMU adapter uses TCG, no networking, read-only generated media and a bounded runtime. It captures GRUB through QMP. A preview image is visual evidence, not physical boot verification.
 
-On Linux, fixture settings/config replacement uses a same-filesystem rooted rename. On Windows, rooted file writes plus the recovery journal avoid unavailable rooted replacement semantics in restricted environments. Windows replacement is not atomic; a torn write with an unrecognized hash requires manual recovery. Power-loss behavior, directory fsync/metadata/SELinux preservation and physical boot correctness are not certified. These are explicit gates for a different, privileged real backend.
-
-The fixture lock is exclusive creation of `.grubmgr/apply.lock`; `state/operation.lock` also serializes receipt publication with fetch/apply/recover. Normal errors release them. A genuinely killed process can leave locks behind: after verifying no grubmgr process uses that fixture, remove only its stale lock files and run `recover`. These locks do not coordinate with the native package manager. Current tests simulate interruption after durable boundaries, not power loss or SIGKILL at every system call.
-
-## Future privilege boundary
-
-A future root-owned helper must rederive all paths, reject caller-controlled executables, copy through a bounded verified channel, coordinate native package updates, preserve metadata, generate/check a candidate with distro tools, and recover independently of a user-writable database. Polkit must authorize the fixed operation, not a general interpreter. None of that authority is installed in 0.1. The fixture marker is a development guard, not authentication.
+See [the Debian backend](debian-backend.md) and [VM tests](vm-testing.md) for the supported layout and evidence.

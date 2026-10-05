@@ -1,6 +1,6 @@
 [
   {
-    "status": "REVIEWED — SYNTHETIC FIXTURE ONLY",
+    "status": "Test theme",
     "recipe": {
       "schema_version": 1,
       "id": "grubmgr/cyberpunk-demo",
@@ -8,19 +8,107 @@
       "author": "GRUB Manager contributors",
       "project_url": "",
       "version": "1.0.0",
-      "source": {"provider": "builtin", "url": "builtin:cyberpunk-demo", "upstream_revision": "synthetic-v1"},
+      "source": {
+        "provider": "builtin",
+        "url": "builtin:cyberpunk-demo",
+        "upstream_revision": "synthetic-v1"
+      },
       "theme_root": ".",
       "entry": "theme.txt",
-      "variants": [{"id": "hd", "root": "hd", "entry": "theme.txt", "resolutions": ["1920x1080"]}],
-      "license": {"spdx": "MIT", "notices": ["LICENSE"], "verified": true, "evidence": "Original synthetic fixture created in this repository; LICENSE"},
-      "compatibility": {"backends": ["fixture-debian"], "requires": ["gfxterm"], "notes": ["No physical boot or real GRUB rendering certification"]},
-      "preview": {"kind": "none"},
+      "variants": [
+        {
+          "id": "hd",
+          "root": "hd",
+          "entry": "theme.txt",
+          "resolutions": [
+            "1920x1080"
+          ]
+        }
+      ],
+      "license": {
+        "spdx": "MIT",
+        "notices": [
+          "LICENSE"
+        ],
+        "verified": true,
+        "evidence": "Original synthetic fixture created in this repository; LICENSE"
+      },
+      "compatibility": {
+        "backends": [
+          "fixture-debian",
+          "debian13-uefi-vm"
+        ],
+        "requires": [
+          "gfxterm"
+        ],
+        "notes": [
+          "No physical boot or real GRUB rendering certification"
+        ]
+      },
+      "preview": {
+        "kind": "none"
+      },
       "recipe_revision": "1",
       "reviewed": true
     }
   },
   {
-    "status": "UNREVIEWED — BROWSE ONLY",
+    "status": "Debian 13 VM tested package",
+    "tree_sha256": "b85ca5d4edb4af357c3ffa67bdf4dc74e43c436d94354ea2c714c63970cc4739",
+    "recipe": {
+      "schema_version": 1,
+      "id": "debian/starfield",
+      "name": "Starfield",
+      "author": "Daniel Tschudi and GRUB contributors",
+      "project_url": "https://packages.debian.org/trixie/grub-theme-starfield",
+      "version": "2.12-9+deb13u2",
+      "source": {
+        "provider": "debian-installed",
+        "url": "debian:grub-theme-starfield=2.12-9+deb13u2",
+        "upstream_revision": "2.12-9+deb13u2"
+      },
+      "artifact_sha256": "b85ca5d4edb4af357c3ffa67bdf4dc74e43c436d94354ea2c714c63970cc4739",
+      "theme_root": ".",
+      "entry": "theme.txt",
+      "variants": [],
+      "license": {
+        "spdx": "MIT AND CC-BY-SA-3.0 AND Bitstream-Vera",
+        "notices": [
+          "theme.txt",
+          "README",
+          "DEBIAN-COPYRIGHT",
+          "FONT-COPYRIGHT",
+          "GPL-3"
+        ],
+        "verified": true,
+        "evidence": "Debian grub-theme-starfield 2.12-9+deb13u2 copyright; upstream theme.txt and README; fonts-dejavu-core copyright. Assets remain separately licensed."
+      },
+      "compatibility": {
+        "backends": [
+          "debian13-uefi-vm"
+        ],
+        "architectures": [
+          "amd64"
+        ],
+        "firmware": [
+          "uefi"
+        ],
+        "requires": [
+          "gfxterm"
+        ],
+        "notes": [
+          "Imports the installed Debian data package; no maintainer scripts or network downloads."
+        ]
+      },
+      "preview": {
+        "kind": "grub-qemu"
+      },
+      "recipe_revision": "1",
+      "reviewed": true
+    }
+  },
+  {
+    "status": "Unreviewed; browse only",
     "recipe": {
       "schema_version": 1,
       "id": "community/minegrub",
@@ -28,11 +116,62 @@
       "author": "Lxtharia",
       "project_url": "https://github.com/Lxtharia/minegrub-theme",
       "version": "unknown",
-      "source": {"provider": "github", "url": "https://github.com/Lxtharia/minegrub-theme", "upstream_revision": "unreviewed"},
-      "theme_root": ".", "entry": "theme.txt", "variants": [],
-      "license": {"spdx": "", "notices": [], "verified": false},
-      "compatibility": {"backends": [], "requires": []},
-      "preview": {"kind": "none"}, "recipe_revision": "discovery-1", "reviewed": false
+      "source": {
+        "provider": "github",
+        "url": "https://github.com/Lxtharia/minegrub-theme",
+        "upstream_revision": "unreviewed"
+      },
+      "theme_root": ".",
+      "entry": "theme.txt",
+      "variants": [],
+      "license": {
+        "spdx": "",
+        "notices": [],
+        "verified": false
+      },
+      "compatibility": {
+        "backends": [],
+        "requires": []
+      },
+      "preview": {
+        "kind": "none"
+      },
+      "recipe_revision": "discovery-1",
+      "reviewed": false
+    }
+  },
+  {
+    "status": "Browse only: artwork and font permissions unconfirmed",
+    "recipe": {
+      "schema_version": 1,
+      "id": "ivanimmanuel-dev/grub-of-tsushima",
+      "name": "Grub of Tsushima",
+      "author": "ivanimmanuel-dev",
+      "project_url": "https://github.com/ivanimmanuel-dev/grub-of-tsushima",
+      "version": "unreviewed",
+      "source": {
+        "provider": "github",
+        "url": "https://github.com/ivanimmanuel-dev/grub-of-tsushima",
+        "upstream_revision": "unreviewed"
+      },
+      "theme_root": ".",
+      "entry": "theme.txt",
+      "variants": [],
+      "license": {
+        "spdx": "",
+        "notices": [],
+        "verified": false,
+        "evidence": "Permissions for the credited Sony/Sucker Punch artwork and third-party fonts are unconfirmed."
+      },
+      "compatibility": {
+        "backends": [],
+        "requires": []
+      },
+      "preview": {
+        "kind": "none"
+      },
+      "recipe_revision": "discovery-1",
+      "reviewed": false
     }
   }
 ]

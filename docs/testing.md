@@ -11,7 +11,7 @@ test -z "$(gofmt -l cmd internal tools)"
 go build -o grubmgr ./cmd/grubmgr
 ```
 
-CI runs Linux and Windows, with Linux race detection. All tests use temporary synthetic roots. No test invokes GRUB, QEMU, a community installer, or a privileged helper. HTTPS tests use an in-process loopback TLS server; a sandbox that prohibits local sockets needs that test run outside its network restriction. No public theme is downloaded by the test suite.
+CI runs Linux and Windows, with Linux race detection. The ordinary test suite uses temporary synthetic roots. No test invokes GRUB, QEMU, a community installer, or a privileged helper. HTTPS tests use an in-process loopback TLS server; a sandbox that prohibits local sockets needs that test run outside its network restriction. No public theme is downloaded by the test suite.
 
 On Windows, use a short writable temporary directory when the sandbox's default temporary path is exceptionally long:
 
@@ -52,10 +52,6 @@ go test -v ./internal/transaction -run 'TestFailuresEveryPhase|TestSwitchFailure
 
 For an actual interrupted **fixture** process: verify it has stopped, preserve the root and SQLite files, remove only its stale `.grubmgr/apply.lock` and `.grubmgr/state/operation.lock` if they remain, then run `grubmgr --root ROOT recover`. If it reports conflicting hashes, inspect the recorded snapshots and restore the fixture manually; do not discard the journal or claim automatic success. `recover` outputs the recovered journal/snapshots, which may include configuration text.
 
-## Exact next step for real activation
+## Real backend tests
 
-Create a **disposable Debian 12 amd64 QEMU VM** with conventional GRUB and an explicit snapshot, no host disks and no shared writable host boot paths. Establish baseline BIOS and UEFI images and record kernel/initrd/chainloader identities. Only after implementing and reviewing a separate root-owned helper and fixed Polkit policy should that helper run inside the VM.
-
-First implement the Debian candidate-generation contract (including how the distro generator consumes staged defaults), real GRUB syntax checks, boot-readable asset checks, metadata/fsync handling and native package-update coordination. The v0.1 fixture code must remain gated. In the VM, exercise install, switch, remove, upgrade to a second immutable revision, failure at every durable phase, forced process interruption, and rollback after a kernel update. Reboot before/after each successful activation and verify old assets and every boot entry. Test restoration failures and offline recovery. Repeat under UEFI; record Secure Boot/font results explicitly, with unknown combinations refused.
-
-Do not enable real activation until those tests pass and the privilege boundary receives independent review. Arch/Fedora require their own later adapters and boot tests; the Fedora EFI stub and BLS must remain unchanged.
+The separate [VM harness](vm-testing.md) exercises Debian 13 activation. VM-only tests are excluded from normal Go test runs by a build tag. See [Phase 2 verification](phase2-verification.md) for actual results.
