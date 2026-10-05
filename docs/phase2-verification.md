@@ -2,6 +2,8 @@
 
 Verified on 2026-10-05. `v0.2.0-rc.1` is ready for experimental use in the specified disposable VM. It is not a physical-machine release.
 
+A subsequent [Debian package run](debian-package-verification.md) completed with frozen inputs from start to finish and tested the production Polkit terminal password prompt. The earlier development-run details below remain as historical evidence.
+
 ## Implementation and environment
 
 The fixture engine remains intact. A separate Debian backend follows the same seven transaction phases, using a fixed Polkit helper, root-owned state, package-manager locks, independently checked package pins and plans, and ownership/path checks. Only `GRUB_THEME` changes in defaults. Debian generates a separate candidate, checks it, then activates it by synced replacement. Immediate recovery restores verified snapshots; later rollback regenerates with current kernels. Failed operations retain assets and recovery material.

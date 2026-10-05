@@ -64,4 +64,8 @@ elif stage=='after-starfield-boot':
     assert '/debian/starfield/' in pathlib.Path('/etc/default/grub').read_text()
     versions=subprocess.check_output(['dpkg-query','-W','grub-common','grub2-common','grub-theme-starfield','qemu-system-x86','ovmf','bubblewrap','xorriso','mtools','pkexec','polkitd'],text=True)
     (base/'package-versions.txt').write_text(versions)
+elif stage=='after-package-reinstall':
+    record('package-reinstalled')
+    packages=run('status')
+    assert any(p['manifest']['id']=='debian/starfield' and p['active'] for p in packages)
 else:raise SystemExit('unknown test stage')

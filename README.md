@@ -16,6 +16,8 @@ go build -o grubmgr ./cmd/grubmgr
 
 On Windows, use `-o grubmgr.exe` and `./grubmgr.exe`.
 
+A [Debian package](docs/debian-package.md) is available for disposable-VM testing. Linux CI publishes it as the `grubmgr-debian-amd64` workflow artifact.
+
 ## Try the fixture workflow
 
 ```sh

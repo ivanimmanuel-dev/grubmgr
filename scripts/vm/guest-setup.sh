@@ -6,15 +6,43 @@ test -d /sys/firmware/efi
 . /etc/os-release
 test "$ID:$VERSION_ID" = debian:13
 
-# Run from the test upload directory, inside the disposable VM only.
-install -d -m 0755 /etc/grubmgr /usr/libexec
-install -d -m 0700 /var/lib/grubmgr
+# Run after installing the frozen .deb, inside the disposable VM only.
+test -x /usr/bin/grubmgr
+test -x /usr/libexec/grubmgr-helper
+if test "${1:-}" = prepare; then
+test ! -e /etc/polkit-1/rules.d/49-grubmgr-vm.rules
+install -d -m 0755 /etc/grubmgr
 printf 'grubmgr disposable VM v1\n' > /etc/grubmgr/vm-test
 chmod 0644 /etc/grubmgr/vm-test
-install -m 0755 grubmgr-phase2 /usr/local/bin/grubmgr
-install -m 0755 grubmgr-helper-phase2 /usr/libexec/grubmgr-helper
-install -m 0755 grubmgr-preview-qemu /usr/libexec/grubmgr-preview-qemu
-install -m 0644 io.github.ivanimmanuel.grubmgr.policy /usr/share/polkit-1/actions/io.github.ivanimmanuel.grubmgr.policy
+python3 - <<'PY'
+import os, pathlib, pwd, secrets, subprocess
+secret = secrets.token_urlsafe(24)
+subprocess.run(['chpasswd'], input='tester:'+secret+'\n', text=True, check=True)
+file = pathlib.Path('/home/tester/grubmgr-test/auth-secret')
+file.write_text(secret+'\n'); file.chmod(0o600)
+user = pwd.getpwnam('tester'); os.chown(file, user.pw_uid, user.pw_gid)
+PY
+cat > /home/tester/.bash_profile <<'PROFILE'
+if test "$(tty)" = /dev/tty1; then
+    python3 /home/tester/grubmgr-test/auth-check.py > /home/tester/grubmgr-test/evidence/auth-run.log 2>&1
+    printf '%s\n' "$?" > /home/tester/grubmgr-test/evidence/auth-exit
+fi
+PROFILE
+chown tester:tester /home/tester/.bash_profile
+install -d -m 0755 /etc/systemd/system/getty@tty1.service.d
+cat > /etc/systemd/system/getty@tty1.service.d/grubmgr-test.conf <<'UNIT'
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin tester --noclear %I 38400 linux
+UNIT
+systemctl daemon-reload
+systemctl restart getty@tty1.service
+elif test "${1:-}" = automation; then
+rm -f /home/tester/grubmgr-test/auth-secret
+usermod --lock tester
+rm -f /home/tester/.bash_profile /etc/systemd/system/getty@tty1.service.d/grubmgr-test.conf
+systemctl daemon-reload
+systemctl restart getty@tty1.service
 
 # Test-only authorization. This rule is never part of a normal installation.
 cat > /etc/polkit-1/rules.d/49-grubmgr-vm.rules <<'RULE'
@@ -25,3 +53,7 @@ polkit.addRule(function(action, subject) {
 });
 RULE
 chmod 0644 /etc/polkit-1/rules.d/49-grubmgr-vm.rules
+else
+    echo 'Expected prepare or automation' >&2
+    exit 2
+fi

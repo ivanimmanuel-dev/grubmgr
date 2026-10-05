@@ -29,3 +29,17 @@ jobs:
         if: runner.os == 'Linux'
         run: go test -race ./...
       - run: go build ./cmd/...
+      - name: Build and inspect Debian package
+        if: runner.os == 'Linux'
+        run: |
+          python3 scripts/build-deb.py --output work/debian
+          python3 scripts/check-deb.py work/debian/*.deb
+          python3 -m py_compile scripts/*.py scripts/vm/*.py
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: grubmgr-debian-amd64
+          path: |
+            work/debian/*.deb
+            work/debian/*.sha256
+            work/debian/*.manifest.json

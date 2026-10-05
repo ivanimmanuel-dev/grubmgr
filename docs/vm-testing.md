@@ -16,9 +16,11 @@ The downloaded Debian image must match the committed SHA-512. If the upstream `l
 
 Each run creates a new overlay and private firmware variables. This is the clean-state/reset mechanism; previous runs remain available for investigation. SSH keys live in a temporary Linux directory. The guest host key comes from the QEMU console, or from the first SSH connection after verifying that this QEMU process owns its loopback listener. Subsequent connections enforce that key. The only forwarded port binds to loopback.
 
-The harness builds the CLI, helper, preview adapter and a separate test binary. It installs them **inside the VM**, runs the synthetic workflow, reboots, installs an additional kernel, rolls back, reboots, injects failures, imports/renders/activates Starfield and reboots again. `PASS` is written only after those stages succeed. Console output, commands, boot identities, hashes, transactions and a preview image are collected as evidence.
+The harness builds one [Debian package](debian-package.md) and a separate test binary before boot. Alternatively, pass `--deb PATH` with its adjacent `.manifest.json`. The package, test binary and guest scripts are frozen in the run directory and hashed; they are never rebuilt or refreshed during the run.
 
-The guest test authorization rule is scoped to its tester account and fixed helper action. It is not a packaging recommendation for users. The helper's production policy still requires authentication.
+It installs the package **inside the VM**, verifies installed hashes and confirms installation alone does not enable activation. A local virtual-console login on seat0 exercises the shipped Polkit password policy with cancellation, wrong and correct passwords. Then it runs the synthetic workflow, reboots, installs an additional kernel, rolls back, reboots, injects failures, imports/renders/activates Starfield and reboots again. Finally, package reinstall/remove/purge/reinstall must preserve boot files, assets and receipts. `PASS` is written only after all stages and the final input-hash check succeed.
+
+The guest test authorization rule is created only after the production-policy password checks. It is scoped to its tester account and fixed helper action and is never included in the package. The temporary test password and console autologin are removed before the transaction suite. Graphical desktop agents remain untested.
 
 ## Failure coverage
 
