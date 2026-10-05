@@ -17,6 +17,8 @@ def check(archive):
     archive = pathlib.Path(archive)
     manifest = json.loads(archive.with_suffix('.manifest.json').read_text())
     assert hashlib.sha256(archive.read_bytes()).hexdigest() == manifest['sha256']
+    assert archive.name == manifest['package']
+    assert archive.with_suffix(archive.suffix+'.sha256').read_text() == manifest['sha256']+'  '+archive.name+'\n'
     actual = {}; seen = set(); info = None; documents = {}
     with tarfile.open(archive) as tar:
         for member in tar:

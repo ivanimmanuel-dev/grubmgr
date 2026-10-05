@@ -36,7 +36,9 @@ def build(go, output):
     deb_version = upstream.replace('-rc.', '~rc.') + '-1'
     output = pathlib.Path(output).resolve()
     output.mkdir(parents=True, exist_ok=True)
-    archive = output/f'grubmgr_{deb_version}_amd64.deb'
+    # GitHub rewrites '~' in asset names; the control record retains Debian ordering.
+    filename_version = deb_version.replace('~rc.', 'rc')
+    archive = output/f'grubmgr_{filename_version}_amd64.deb'
     env = os.environ.copy()
     env.update(CGO_ENABLED='0', GOOS='linux', GOARCH='amd64')
     env['SOURCE_DATE_EPOCH'] = str(source_epoch(env))

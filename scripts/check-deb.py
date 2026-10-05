@@ -19,6 +19,8 @@ def check(archive):
     archive = pathlib.Path(archive)
     manifest = json.loads(archive.with_suffix('.manifest.json').read_text())
     assert hashlib.sha256(archive.read_bytes()).hexdigest() == manifest['sha256']
+    assert archive.name == manifest['package']
+    assert archive.with_suffix('.deb.sha256').read_text() == manifest['sha256']+'  '+archive.name+'\n'
     payload = subprocess.check_output(['dpkg-deb', '--ctrl-tarfile', str(archive)])
     with tarfile.open(fileobj=io.BytesIO(payload)) as control:
         names = {p.name.removeprefix('./') for p in control if p.isfile()}

@@ -6,14 +6,14 @@ Download the package for your system from [GRUB Manager 0.3.0-rc.1](https://gith
 
 | System | File |
 | --- | --- |
-| Debian, Ubuntu or Kali · x86-64 | `grubmgr_0.3.0~rc.1-1_amd64.deb` |
+| Debian, Ubuntu or Kali · x86-64 | `grubmgr_0.3.0rc1-1_amd64.deb` |
 | Arch · x86-64 | `grubmgr-0.3.0rc1-1-x86_64.pkg.tar.xz` |
 
 Download its matching `.sha256` file into the same directory. Check the download before installing:
 
 ```sh
-sha256sum -c grubmgr_0.3.0~rc.1-1_amd64.deb.sha256
-sudo apt install ./grubmgr_0.3.0~rc.1-1_amd64.deb
+sha256sum -c grubmgr_0.3.0rc1-1_amd64.deb.sha256
+sudo apt install ./grubmgr_0.3.0rc1-1_amd64.deb
 ```
 
 On Arch:

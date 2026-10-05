@@ -8,7 +8,7 @@ Import, validate, preview and switch GRUB themes from the command line. Keep pre
 
 | Your system | Package |
 | --- | --- |
-| Debian, Ubuntu or Kali · x86-64 | [Download .deb](https://github.com/ivanimmanuel-dev/grubmgr/releases/download/v0.3.0-rc.1/grubmgr_0.3.0~rc.1-1_amd64.deb) |
+| Debian, Ubuntu or Kali · x86-64 | [Download .deb](https://github.com/ivanimmanuel-dev/grubmgr/releases/download/v0.3.0-rc.1/grubmgr_0.3.0rc1-1_amd64.deb) |
 | Arch · x86-64 | [Download Arch package](https://github.com/ivanimmanuel-dev/grubmgr/releases/download/v0.3.0-rc.1/grubmgr-0.3.0rc1-1-x86_64.pkg.tar.xz) |
 
 [Release details and checksums](https://github.com/ivanimmanuel-dev/grubmgr/releases/tag/v0.3.0-rc.1)
@@ -18,7 +18,7 @@ Import, validate, preview and switch GRUB themes from the command line. Keep pre
 Debian, Ubuntu or Kali:
 
 ```sh
-sudo apt install ./grubmgr_0.3.0~rc.1-1_amd64.deb
+sudo apt install ./grubmgr_0.3.0rc1-1_amd64.deb
 ```
 
 Arch:
