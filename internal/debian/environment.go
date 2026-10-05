@@ -27,6 +27,7 @@ type Environment struct {
 	Layout      string   `json:"layout"`
 	Fingerprint string   `json:"fingerprint"`
 	Warnings    []string `json:"warnings"`
+	profile     profile
 }
 
 func paths(root string) system.Paths {
@@ -36,7 +37,7 @@ func paths(root string) system.Paths {
 func Inspect() (Environment, error) { return inspect("/") }
 
 func inspect(root string) (Environment, error) {
-	q := Environment{Status: "UNSUPPORTED", Backend: Backend, Warnings: []string{}}
+	q := Environment{Status: "UNSUPPORTED", Backend: "none", Warnings: []string{}}
 	refuse := func(reason string) (Environment, error) { q.Reason = reason; return q, nil }
 	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
 		return refuse("requires Linux amd64")
@@ -53,44 +54,45 @@ func inspect(root string) (Environment, error) {
 	if err := secure(path.Join(root, "etc/grubmgr/vm-test"), false); err != nil {
 		return refuse(err.Error())
 	}
-	release := string(read("etc/os-release"))
-	if !strings.Contains("\n"+release, "\nID=debian\n") || !strings.Contains(release, "VERSION_ID=\"13\"") {
-		return refuse("only Debian 13 is enabled")
+	target, err := selectProfile(read("etc/os-release"))
+	if err != nil {
+		return refuse(err.Error())
 	}
+	q.profile, q.Backend = target, target.Backend
 	sb := read("sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c")
 	if len(sb) != 5 || sb[4] != 0 {
 		return refuse("requires UEFI with Secure Boot reported disabled")
 	}
 	q.Firmware = "UEFI; Secure Boot disabled"
-	for _, p := range []string{"boot/grub2/grub.cfg", "boot/loader/loader.conf", "etc/grub.d/proxifiedScripts", "etc/grub.d/40_custom_proxy", "etc/ostree"} {
+	for _, p := range []string{"boot/grub2/grub.cfg", "boot/loader/loader.conf", "efi/loader/loader.conf", "etc/grub.d/proxifiedScripts", "etc/grub.d/40_custom_proxy", "etc/ostree", "etc/snapper/configs/root"} {
 		if _, e := r.Stat(p); e == nil {
 			q.Status = "AMBIGUOUS"
 			return refuse("conflicting boot configuration: /" + p)
 		}
 	}
-	status := string(read("var/lib/dpkg/status"))
-	versions := map[string]string{}
-	for _, stanza := range strings.Split(status, "\n\n") {
-		fields := map[string]string{}
-		for _, line := range strings.Split(stanza, "\n") {
-			kv := strings.SplitN(line, ": ", 2)
-			if len(kv) == 2 {
-				fields[kv[0]] = kv[1]
-			}
-		}
-		if fields["Status"] == "install ok installed" {
-			versions[fields["Package"]] = fields["Version"]
-		}
+	versions, packageFiles, err := installedVersions(r, target)
+	if err != nil {
+		return refuse(err.Error())
 	}
 	q.GRUBVersion = versions["grub-common"]
-	if q.GRUBVersion != "2.12-9+deb13u2" || versions["grub2-common"] != q.GRUBVersion {
+	if target.PackageManager == "pacman" {
+		q.GRUBVersion = versions["grub"]
+	}
+	if q.GRUBVersion != target.GRUBVersion || (target.PackageManager == "dpkg" && versions["grub2-common"] != q.GRUBVersion) {
 		return refuse("untested GRUB package version: " + q.GRUBVersion)
 	}
-	if versions["grub-customizer"] != "" || versions["grub-btrfs"] != "" {
+	if versions["grub-customizer"] != "" || versions["grub-btrfs"] != "" || versions["snapper"] != "" {
 		return refuse("GRUB Customizer and snapshot integration are unsupported")
 	}
+	// Arch's standard EFI automount may be idle. Opening the fixed directory
+	// activates that existing mount without writing any EFI files.
+	efi, err := r.Open(strings.TrimPrefix(target.EFIMount, "/"))
+	if err != nil {
+		return refuse("cannot open EFI mount: " + err.Error())
+	}
+	defer efi.Close()
 	mounts := string(read("proc/self/mountinfo"))
-	rootOK, efiOK := false, false
+	rootOK, efiOK, bootOK := false, false, !target.SeparateBoot
 	for _, line := range strings.Split(mounts, "\n") {
 		halves := strings.SplitN(line, " - ", 2)
 		if len(halves) != 2 {
@@ -102,26 +104,37 @@ func inspect(root string) (Environment, error) {
 		}
 		switch left[4] {
 		case "/":
-			rootOK = right[0] == "ext4" && strings.Contains(","+left[5]+",", ",rw,")
+			rootOK = right[0] == target.RootFS && strings.Contains(","+left[5]+",", ",rw,") && left[3] == "/"
+			if target.RootFS == "btrfs" && !strings.Contains(","+right[2]+",", ",subvolid=5,") {
+				rootOK = false
+			}
 		case "/boot":
-			return refuse("separate /boot has not been tested")
-		case "/boot/efi":
+			if !target.SeparateBoot {
+				return refuse("separate /boot has not been tested for this profile")
+			}
+			bootOK = right[0] == "ext4" && strings.Contains(","+left[5]+",", ",rw,") && left[3] == "/"
+		case target.EFIMount:
 			efiOK = right[0] == "vfat"
 		}
 	}
-	if !rootOK || !efiOK {
-		return refuse("requires writable ext4 root with /boot on root and a mounted FAT EFI partition")
+	if !rootOK || !efiOK || !bootOK {
+		return refuse("requires the tested " + target.RootFS + " root/boot layout and FAT " + target.EFIMount)
 	}
-	q.Layout = "ext4 root including /boot; FAT /boot/efi"
+	q.Layout = target.RootFS + " root including /boot; FAT " + target.EFIMount
+	if target.SeparateBoot {
+		q.Layout = "ext4 root; separate ext4 /boot; FAT /boot/efi"
+	}
 	evidence := []model.File{}
-	link, linkErr := os.Readlink(path.Join(root, "usr/lib/grub/grub-mkconfig_lib"))
-	if linkErr != nil || link != "../../share/grub/grub-mkconfig_lib" {
-		return refuse("unexpected Debian GRUB library link")
+	if target.PackageManager == "dpkg" {
+		link, linkErr := os.Readlink(path.Join(root, "usr/lib/grub/grub-mkconfig_lib"))
+		if linkErr != nil || link != "../../share/grub/grub-mkconfig_lib" {
+			return refuse("unexpected GRUB library link")
+		}
+		if err := secure(path.Join(root, "usr/lib/grub"), true); err != nil {
+			return refuse(err.Error())
+		}
+		evidence = append(evidence, model.File{Path: "usr/lib/grub/grub-mkconfig_lib", Size: int64(len(link)), SHA256: model.Hash([]byte(link))})
 	}
-	if err := secure(path.Join(root, "usr/lib/grub"), true); err != nil {
-		return refuse(err.Error())
-	}
-	evidence = append(evidence, model.File{Path: "usr/lib/grub/grub-mkconfig_lib", Size: int64(len(link)), SHA256: model.Hash([]byte(link))})
 	add := func(name string) error {
 		if err := secure(path.Join(root, name), false); err != nil {
 			return err
@@ -133,7 +146,7 @@ func inspect(root string) (Environment, error) {
 		evidence = append(evidence, model.File{Path: name, Size: int64(len(b)), SHA256: model.Hash(b)})
 		return nil
 	}
-	for _, name := range []string{Defaults, Config, "etc/machine-id", "usr/sbin/grub-mkconfig", "usr/bin/grub-script-check", "usr/sbin/grub-probe", "usr/share/grub/grub-mkconfig_lib", "var/lib/dpkg/status"} {
+	for _, name := range append([]string{Defaults, Config, "etc/machine-id", target.Generator, "usr/bin/grub-script-check", target.Probe, target.Library}, packageFiles...) {
 		if err := add(name); err != nil {
 			return refuse(err.Error())
 		}
@@ -169,16 +182,20 @@ func inspect(root string) (Environment, error) {
 		return refuse(err.Error())
 	}
 	for _, file := range boot {
-		if strings.HasPrefix(file.Name(), "vmlinuz-") || strings.HasPrefix(file.Name(), "initrd.img-") {
+		if strings.HasPrefix(file.Name(), "vmlinuz-") || strings.HasPrefix(file.Name(), "initrd.img-") || strings.HasPrefix(file.Name(), "initramfs-") || strings.HasSuffix(file.Name(), "-ucode.img") {
 			if err = add("boot/" + file.Name()); err != nil {
 				return refuse(err.Error())
 			}
 		}
 	}
 	sort.Slice(evidence, func(i, j int) bool { return evidence[i].Path < evidence[j].Path })
-	q.Fingerprint = model.Digest(evidence)
+	q.Fingerprint = model.Digest(struct {
+		Profile profile
+		Release string
+		Files   []model.File
+	}{target, string(read("etc/os-release")), evidence})
 	q.Status = "SUPPORTED WITH WARNINGS"
-	q.Reason = "experimental activation in the disposable Debian VM"
+	q.Reason = "experimental activation in the disposable " + target.ID + " VM"
 	q.Warnings = []string{"No physical-machine support; a successful syntax check is not boot verification"}
 	return q, nil
 }

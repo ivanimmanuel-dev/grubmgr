@@ -299,7 +299,7 @@ func apply(req Request, faults transaction.Faults) (state.Transaction, error) {
 		}
 		bytes := tx.Before.Config
 		if len(pl.Generator) > 0 {
-			if err = runTool("/usr/sbin/grub-mkconfig", "-o", "/"+candidate); err != nil {
+			if err = runTool(pl.Generator[0], "-o", "/"+candidate); err != nil {
 				return err
 			}
 			if err = secure("/"+candidate, false); err != nil {

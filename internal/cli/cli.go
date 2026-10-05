@@ -21,7 +21,7 @@ import (
 	"strings"
 )
 
-const Version = "0.2.0-rc.1"
+const Version = "0.3.0-rc.1"
 const help = `GRUB Manager (grubmgr)
 
 Usage: grubmgr [--json] [--log-json] [--root FIXTURE] COMMAND
@@ -38,7 +38,7 @@ Usage: grubmgr [--json] [--log-json] [--root FIXTURE] COMMAND
   recover                           Recover an interrupted transaction
   preview ID                        Preview with optional GRUB/QEMU tools
 
-Physical-machine activation is disabled. Real activation requires the Debian test VM.
+Physical-machine activation is disabled. Real activation requires a supported test VM.
 Install copies assets; switch selects an installed theme. Planning makes no changes.
 `
 
@@ -131,7 +131,7 @@ func execute(o options) (any, error) {
 		return help, need(0)
 	}
 	if command == "version" {
-		return map[string]any{"version": Version, "go": runtime.Version(), "activation": "fixtures and the Debian test VM only"}, need(0)
+		return map[string]any{"version": Version, "go": runtime.Version(), "activation": "fixtures and supported Debian, Ubuntu, Kali and Arch test VMs only"}, need(0)
 	}
 	p, e := system.Locations(o.root)
 	if e != nil {

@@ -54,4 +54,4 @@ For an actual interrupted **fixture** process: verify it has stopped, preserve t
 
 ## Real backend tests
 
-The separate [VM harness](vm-testing.md) exercises Debian 13 activation. VM-only tests are excluded from normal Go test runs by a build tag. See [Phase 2 verification](phase2-verification.md) for actual results.
+The separate [VM harness](vm-testing.md) exercises Debian 13 activation; the [Linux matrix harness](linux-support.md) adds Ubuntu, Kali and Arch. VM-only tests are excluded from normal Go test runs by a build tag. See [Phase 2 verification](phase2-verification.md) for the original Debian results.

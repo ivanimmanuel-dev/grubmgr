@@ -45,6 +45,11 @@ func Call(req Request, result any) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
+	stopAgent, err := terminalAgent(ctx)
+	if err != nil {
+		return err
+	}
+	defer stopAgent()
 	cmd := exec.CommandContext(ctx, "/usr/bin/pkexec", Helper)
 	cmd.Stdin = bytes.NewReader(data)
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C"}

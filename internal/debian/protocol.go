@@ -1,4 +1,4 @@
-// Package debian implements the experimental, VM-only Debian activation service.
+// Package debian implements the shared, VM-only Linux GRUB activation service.
 package debian
 
 import (
@@ -18,7 +18,6 @@ import (
 	"strings"
 )
 
-const Backend = "debian13-uefi-vm"
 const Helper = "/usr/libexec/grubmgr-helper"
 const MaxRequest = 180 << 20
 
@@ -145,15 +144,6 @@ func CheckBundle(b *Bundle) error {
 	}
 	if err != nil || !entry.Recipe.Reviewed || !entry.Recipe.License.Verified || model.Digest(entry.Recipe) != model.Digest(m.Recipe) {
 		return fmt.Errorf("package recipe is not approved by this helper build")
-	}
-	compatible := false
-	for _, v := range m.Compatibility.Backends {
-		if v == Backend {
-			compatible = true
-		}
-	}
-	if !compatible {
-		return fmt.Errorf("recipe does not permit %s", Backend)
 	}
 	if len(b.Files) == 0 || len(b.Files) > fsx.MaxMembers || len(b.Files) != len(m.Files) {
 		return fmt.Errorf("invalid package inventory size")

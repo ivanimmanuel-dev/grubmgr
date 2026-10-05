@@ -4,7 +4,10 @@ test "$(id -u)" = 0
 test "$(cat /sys/class/dmi/id/product_name)" = grubmgr-disposable-v1
 test -d /sys/firmware/efi
 . /etc/os-release
-test "$ID:$VERSION_ID" = debian:13
+case "$ID:${VERSION_ID:-rolling}" in
+    debian:13|ubuntu:24.04|arch:rolling|kali:*) ;;
+    *) echo 'Unsupported disposable guest' >&2; exit 1 ;;
+esac
 
 # Run after installing the frozen .deb, inside the disposable VM only.
 test -x /usr/bin/grubmgr

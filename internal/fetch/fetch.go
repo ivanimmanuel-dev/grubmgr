@@ -218,7 +218,7 @@ func Import(p system.Paths, source, recipeFile string) (model.Package, error) {
 		if e = os.WriteFile(filepath.Join(temp, "manifest.json"), b, 0600); e != nil {
 			return result, e
 		}
-		if e = os.Rename(temp, dest); e != nil {
+		if e = promote(temp, dest); e != nil {
 			return result, e
 		}
 	} else if e != nil {

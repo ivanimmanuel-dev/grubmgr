@@ -100,10 +100,33 @@ func acquire(root string) (func(), error) {
 			held[i].Close()
 		}
 	}
-	for _, item := range []struct {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	releaseBytes, err := fsx.Read(r, "etc/os-release", 1<<20)
+	r.Close()
+	if err != nil {
+		return nil, err
+	}
+	target, err := selectProfile(releaseBytes)
+	if err != nil {
+		return nil, err
+	}
+	items := []struct {
 		name  string
 		flock bool
-	}{{"var/lib/grubmgr/operation.lock", true}, {"var/lib/dpkg/lock-frontend", false}, {"var/lib/dpkg/lock", false}} {
+	}{{"var/lib/grubmgr/operation.lock", true}}
+	if target.PackageManager == "dpkg" {
+		items = append(items, struct {
+			name  string
+			flock bool
+		}{"var/lib/dpkg/lock-frontend", false}, struct {
+			name  string
+			flock bool
+		}{"var/lib/dpkg/lock", false})
+	}
+	for _, item := range items {
 		name := filepath.Join(root, item.name)
 		if err := secure(filepath.Dir(name), true); err != nil {
 			release()
@@ -129,6 +152,14 @@ func acquire(root string) (func(), error) {
 			return nil, fmt.Errorf("grubmgr or a package update is active: %w", err)
 		}
 	}
+	if target.PackageManager == "pacman" {
+		unlock, err := acquirePacman(root)
+		if err != nil {
+			release()
+			return nil, err
+		}
+		return func() { unlock(); release() }, nil
+	}
 	return release, nil
 }
 
@@ -142,7 +173,7 @@ func (b *boundedOutput) Write(p []byte) (int, error) {
 }
 
 func runTool(executable string, args ...string) error {
-	if executable != "/usr/sbin/grub-mkconfig" && executable != "/usr/bin/grub-script-check" {
+	if executable != "/usr/sbin/grub-mkconfig" && executable != "/usr/bin/grub-mkconfig" && executable != "/usr/bin/grub-script-check" {
 		return fmt.Errorf("unapproved executable")
 	}
 	if err := secure(executable, false); err != nil {

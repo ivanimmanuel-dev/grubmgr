@@ -35,4 +35,4 @@ After an interrupted operation, run `grubmgr recover` as the ordinary guest user
 
 Later user rollback uses `grubmgr plan rollback TRANSACTION`, followed by `grubmgr apply TOKEN`. It selects the previous retained theme and regenerates against current kernels. Old snapshots are used only for immediate transaction recovery.
 
-Ubuntu, Arch, Fedora, physical Debian machines, WSL activation, BIOS, Secure Boot enabled, separate boot mounts, non-ext4 roots, customizer and snapshot integrations are not supported.
+This profile does not cover physical Debian machines, WSL activation, BIOS, Secure Boot enabled, separate boot mounts, non-ext4 roots, customizer or snapshot integrations. Ubuntu, Kali and Arch use the separate profiles described in [Linux targets](linux-support.md). Fedora remains detection-only.

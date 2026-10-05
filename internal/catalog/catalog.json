@@ -36,7 +36,10 @@
       "compatibility": {
         "backends": [
           "fixture-debian",
-          "debian13-uefi-vm"
+          "debian13-uefi-vm",
+          "ubuntu2404-uefi-vm",
+          "kali-rolling-uefi-vm",
+          "arch-uefi-vm"
         ],
         "requires": [
           "gfxterm"
@@ -48,7 +51,7 @@
       "preview": {
         "kind": "none"
       },
-      "recipe_revision": "1",
+      "recipe_revision": "2",
       "reviewed": true
     }
   },

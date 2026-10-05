@@ -2,7 +2,7 @@
 
 `grubmgr` installs, switches, and rolls back GRUB themes.
 
-The CLI includes a fixture backend and an experimental Debian 13 VM backend. Physical-machine activation is disabled.
+The CLI includes a fixture backend and experimental Debian, Ubuntu, Kali and Arch VM profiles. Physical-machine activation is disabled.
 
 ## Build
 
@@ -17,6 +17,8 @@ go build -o grubmgr ./cmd/grubmgr
 On Windows, use `-o grubmgr.exe` and `./grubmgr.exe`.
 
 A [Debian package](docs/debian-package.md) is available for disposable-VM testing. Linux CI publishes it as the `grubmgr-debian-amd64` workflow artifact.
+
+The [Linux support guide](docs/linux-support.md) covers Ubuntu/Kali `.deb` testing and the Arch pacman package. Linux CI also publishes `grubmgr-arch-x86_64`.
 
 ## Try the fixture workflow
 
@@ -59,8 +61,11 @@ Use `--variant ID` to select a variant, `--json` for structured output, and `--l
 | --- | --- |
 | Marked Debian fixture | Working |
 | Debian 13.7 amd64 UEFI test VM, GRUB 2.12-9+deb13u2 | Experimental; exact layout only |
+| Ubuntu 24.04 amd64 UEFI test VM | Experimental; separate ext4 `/boot` profile |
+| Kali amd64 UEFI test VM | Experimental; pinned GRUB and ext4 layout |
+| Arch x86-64 UEFI test VM | Experimental; flat Btrfs root and `/efi` profile |
 | Physical machines, WSL | Refused |
-| Arch, Fedora | Detection only |
+| Fedora | Detection only |
 | Other systems | Read-only or refused |
 
 Cyberpunk Demo is an original test theme. Starfield imports a pinned Debian data package and preserves its notices. Other themes need reviewed recipes, content pins and asset licenses. Grub of Tsushima is deferred until its artwork/font permissions are known. No community installer scripts run.
@@ -74,12 +79,13 @@ go mod verify
 go run ./tools/checklicenses
 ```
 
-See [testing](docs/testing.md), [Phase 2 verification](docs/phase2-verification.md), and the [VM harness](docs/vm-testing.md). Normal CI uses temporary fixtures. Real boot tests run separately in disposable VMs.
+See [testing](docs/testing.md), [Linux VM verification](docs/linux-verification.md), the earlier [Debian verification](docs/phase2-verification.md), and the [VM harness](docs/vm-testing.md). Normal CI uses temporary fixtures. Real boot tests run separately in disposable VMs.
 
 ## Documentation
 
 - [Architecture](docs/architecture.md)
 - [Debian support and recovery](docs/debian-backend.md)
+- [Linux profiles, packages and VM tests](docs/linux-support.md)
 - [Package format](docs/package-format.md)
 - [Security model](docs/security-model.md)
 - [Ecosystem audit](docs/ecosystem-audit.md)

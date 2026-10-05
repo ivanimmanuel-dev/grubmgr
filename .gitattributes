@@ -6,6 +6,7 @@
 *.py text eol=lf
 *.sh text eol=lf
 *.policy text eol=lf
+packaging/apparmor/** text eol=lf
 fixtures/** text eol=lf
 internal/catalog/demo/** text eol=lf
 # License notice bytes have recorded checksums and must remain unchanged.

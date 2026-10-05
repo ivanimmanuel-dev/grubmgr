@@ -28,7 +28,7 @@ insmod serial
 serial --unit=0 --speed=115200
 terminal_output --append serial
 echo GRUBMGR_PREVIEW_READY
-menuentry 'Debian preview' { echo 'Preview only'; sleep 60; }
+menuentry 'Linux preview' { echo 'Preview only'; sleep 60; }
 menuentry 'Recovery preview' { echo 'Preview only'; sleep 60; }
 `
 const renderer = "/usr/local/bin/grub2-theme-preview"
@@ -46,7 +46,11 @@ func Capture(source, cache string, m model.Manifest, variantID string) (Result, 
 		return result, output.Fail(output.Unsupported, "PREVIEW_PLATFORM", "preview requires an ordinary Linux user")
 	}
 	missing := []string{}
-	for _, name := range []string{renderer, qemuAdapter, "/usr/bin/bwrap", "/usr/bin/prlimit", "/usr/bin/qemu-system-x86_64", "/usr/bin/grub-mkrescue", "/usr/bin/xorriso", "/usr/bin/mformat", "/usr/share/OVMF/OVMF_CODE_4M.fd", "/usr/share/OVMF/OVMF_VARS_4M.fd"} {
+	code, vars, err := firmware()
+	if err != nil {
+		return result, output.Fail(output.Unsupported, "PREVIEW_DEPENDENCIES", "%v", err)
+	}
+	for _, name := range []string{renderer, qemuAdapter, "/usr/bin/bwrap", "/usr/bin/prlimit", "/usr/bin/qemu-system-x86_64", "/usr/bin/grub-mkrescue", "/usr/bin/xorriso", "/usr/bin/mformat"} {
 		if _, err := os.Stat(name); err != nil {
 			missing = append(missing, name)
 		}
@@ -77,7 +81,7 @@ func Capture(source, cache string, m model.Manifest, variantID string) (Result, 
 	if err = os.WriteFile(filepath.Join(dir, "menu.cfg"), []byte(menu), 0600); err != nil {
 		return result, err
 	}
-	args := []string{"--unshare-all", "--die-with-parent", "--new-session", "--ro-bind", "/usr", "/usr", "--symlink", "usr/lib", "/lib", "--symlink", "usr/lib64", "/lib64", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--dir", "/run", "--dir", "/home", "--dir", "/sys", "--dir", "/sys/firmware", "--dir", "/sys/firmware/efi", "--dir", "/etc", "--ro-bind", "/etc/ld.so.cache", "/etc/ld.so.cache", "--ro-bind", filepath.Join(source, variant.Root), "/theme", "--bind", dir, "/output", "--clearenv", "--setenv", "PATH", "/usr/local/bin:/usr/bin:/bin", "--setenv", "HOME", "/tmp", "--setenv", "LANG", "C", "--setenv", "TMPDIR", "/tmp", "--chdir", "/tmp", "/usr/bin/prlimit", "--as=4294967296", "--cpu=90", "--fsize=268435456", "--nofile=128", "--", renderer, "--grub-cfg", "/output/menu.cfg", "--qemu", qemuAdapter, "--grub2-mkrescue", "/usr/bin/grub-mkrescue", "--xorriso", "/usr/bin/xorriso", "--display", "none", "--no-kvm", "--timeout", "-1", "--resolution", "1024x768", "/theme"}
+	args := []string{"--unshare-all", "--die-with-parent", "--new-session", "--dir", "/firmware", "--ro-bind", code, "/firmware/code.fd", "--ro-bind", vars, "/firmware/vars.fd", "--ro-bind", "/usr", "/usr", "--symlink", "usr/lib", "/lib", "--symlink", "usr/lib64", "/lib64", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--dir", "/run", "--dir", "/home", "--dir", "/sys", "--dir", "/sys/firmware", "--dir", "/sys/firmware/efi", "--dir", "/etc", "--ro-bind", "/etc/ld.so.cache", "/etc/ld.so.cache", "--ro-bind", filepath.Join(source, variant.Root), "/theme", "--bind", dir, "/output", "--clearenv", "--setenv", "G2TP_OVMF_IMAGE", "/firmware/code.fd", "--setenv", "PATH", "/usr/local/bin:/usr/bin:/bin", "--setenv", "HOME", "/tmp", "--setenv", "LANG", "C", "--setenv", "TMPDIR", "/tmp", "--chdir", "/tmp", "/usr/bin/prlimit", "--as=4294967296", "--cpu=90", "--fsize=268435456", "--nofile=128", "--", renderer, "--grub-cfg", "/output/menu.cfg", "--qemu", qemuAdapter, "--grub2-mkrescue", "/usr/bin/grub-mkrescue", "--xorriso", "/usr/bin/xorriso", "--display", "none", "--no-kvm", "--timeout", "-1", "--resolution", "1024x768", "/theme"}
 	ctx, cancel := context.WithTimeout(context.Background(), 360*time.Second)
 	// Upstream otherwise hides child stderr, including adapter diagnostics.
 	args = append(args[:len(args)-1], "--verbose", args[len(args)-1])
@@ -134,7 +138,7 @@ func QEMU(args []string) error {
 			}
 		case "-drive":
 			value := args[i+1]
-			if value == "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd" {
+			if value == "if=pflash,format=raw,readonly=on,file=/firmware/code.fd" {
 				continue
 			}
 			if imagePath != "" || !strings.HasPrefix(value, "file=/tmp/") || !strings.HasSuffix(value, ",index=0,media=disk,format=raw") {
@@ -156,7 +160,7 @@ func QEMU(args []string) error {
 	defer cancel()
 	// OVMF needs a matching variable store. This private copy is discarded with
 	// the namespace and never reads or writes the host firmware variable store.
-	vars, err := os.ReadFile("/usr/share/OVMF/OVMF_VARS_4M.fd")
+	vars, err := os.ReadFile("/firmware/vars.fd")
 	if err != nil {
 		return err
 	}
@@ -166,7 +170,7 @@ func QEMU(args []string) error {
 	if err = os.WriteFile("/tmp/grubmgr-preview-vars.fd", vars, 0600); err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(ctx, "/usr/bin/qemu-system-x86_64", "-machine", "q35,smm=on", "-accel", "tcg", "-m", "256", "-net", "none", "-display", "none", "-monitor", "none", "-serial", "file:/output/grub-serial.log", "-drive", "file="+imagePath+",format=raw,media=cdrom,readonly=on", "-drive", "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd", "-drive", "if=pflash,format=raw,file=/tmp/grubmgr-preview-vars.fd", "-qmp", "unix:/tmp/grubmgr-preview.sock,server=on,wait=off")
+	cmd := exec.CommandContext(ctx, "/usr/bin/qemu-system-x86_64", "-machine", "q35,smm=on", "-accel", "tcg", "-m", "256", "-net", "none", "-display", "none", "-monitor", "none", "-serial", "file:/output/grub-serial.log", "-drive", "file="+imagePath+",format=raw,media=cdrom,readonly=on", "-drive", "if=pflash,format=raw,readonly=on,file=/firmware/code.fd", "-drive", "if=pflash,format=raw,file=/tmp/grubmgr-preview-vars.fd", "-qmp", "unix:/tmp/grubmgr-preview.sock,server=on,wait=off")
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "LANG=C"}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -214,7 +218,7 @@ func QEMU(args []string) error {
 	ready := false
 	for until := time.Now().Add(240 * time.Second); time.Now().Before(until); time.Sleep(time.Second) {
 		data, err := os.ReadFile("/output/grub-serial.log")
-		if err == nil && bytes.Contains(data, []byte("GRUBMGR_PREVIEW_READY")) && bytes.Contains(data, []byte("Debian preview")) {
+		if err == nil && bytes.Contains(data, []byte("GRUBMGR_PREVIEW_READY")) && bytes.Contains(data, []byte("Linux preview")) {
 			ready = true
 			break
 		}

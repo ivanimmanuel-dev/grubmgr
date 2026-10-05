@@ -126,6 +126,15 @@ func build(root string, req planner.Request, bundle *Bundle) (planner.Plan, erro
 	}
 	if have {
 		m := selected.Manifest
+		compatible := false
+		for _, backend := range m.Compatibility.Backends {
+			if backend == env.Backend {
+				compatible = true
+			}
+		}
+		if !compatible {
+			return pl, fmt.Errorf("recipe does not permit %s", env.Backend)
+		}
 		if bundle != nil && bundle.Manifest.Revision != m.Revision {
 			return pl, fmt.Errorf("supplied package does not match plan target")
 		}
@@ -179,7 +188,7 @@ func build(root string, req planner.Request, bundle *Bundle) (planner.Plan, erro
 		pl.DefaultsAfter = string(after)
 	}
 	if req.Action != "install" && (pl.AfterTheme != pl.BeforeTheme || req.Action == "rollback") {
-		pl.Generator = []string{"/usr/sbin/grub-mkconfig", "-o", "/boot/grub/.grubmgr-TRANSACTION.cfg"}
+		pl.Generator = []string{"/" + env.profile.Generator, "-o", "/boot/grub/.grubmgr-TRANSACTION.cfg"}
 	}
 	pl.Fingerprint = model.Digest(struct {
 		Environment string
@@ -189,7 +198,7 @@ func build(root string, req planner.Request, bundle *Bundle) (planner.Plan, erro
 	b, _ := json.Marshal(Token{Schema: 2, Request: pl.Request, Fingerprint: pl.Fingerprint, Revision: pl.Revision})
 	pl.ID = "p2." + base64.RawURLEncoding.EncodeToString(b)
 	pl.Applicable = true
-	pl.Compatibility = Backend
+	pl.Compatibility = env.Backend
 	pl.Validation = "package identity verified; candidate checked during apply"
 	pl.Reason = env.Reason
 	return pl, nil

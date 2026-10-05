@@ -3,6 +3,7 @@
 package debian
 
 import (
+	"bufio"
 	"bytes"
 	"grubmgr/internal/fsx"
 	"grubmgr/internal/model"
@@ -15,6 +16,78 @@ import (
 	"syscall"
 	"testing"
 )
+
+func TestVMPackageLock(t *testing.T) {
+	q, err := Inspect()
+	if err != nil || q.Status != "SUPPORTED WITH WARNINGS" || os.Geteuid() != 0 {
+		t.Fatal("disposable VM required", q, err)
+	}
+	unlock, err := acquire("/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if other, err := acquire("/"); err == nil {
+		other()
+		unlock()
+		t.Fatal("concurrent manager accepted")
+	}
+	unlock()
+	if q.profile.PackageManager == "pacman" {
+		name := "/var/lib/pacman/db.lck"
+		f, err := os.OpenFile(name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = f.WriteString("foreign package operation\n")
+		f.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(name)
+		if other, err := acquire("/"); err == nil {
+			other()
+			t.Fatal("foreign pacman lock accepted")
+		}
+		data, err := os.ReadFile(name)
+		if err != nil || string(data) != "foreign package operation\n" {
+			t.Fatal("foreign lock changed", err)
+		}
+	} else {
+		cmd := exec.Command("python3", "-c", "import fcntl,time; f=open('/var/lib/dpkg/lock','r+'); fcntl.lockf(f,fcntl.LOCK_EX); print('ready',flush=True); time.sleep(60)")
+		pipe, err := cmd.StdoutPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = cmd.Process.Kill(); _ = cmd.Wait() }()
+		line, err := bufio.NewReader(pipe).ReadString('\n')
+		if err != nil || line != "ready\n" {
+			t.Fatal(line, err)
+		}
+		if other, err := acquire("/"); err == nil {
+			other()
+			t.Fatal("dpkg lock accepted")
+		}
+	}
+}
+
+func TestVMEFIAutomount(t *testing.T) {
+	q, err := Inspect()
+	if err != nil || q.Status != "SUPPORTED WITH WARNINGS" || os.Geteuid() != 0 {
+		t.Fatal("disposable VM required", q, err)
+	}
+	if q.profile.ID != "arch" {
+		t.Skip("the Arch image has an EFI automount")
+	}
+	if out, err := exec.Command("/usr/bin/umount", "/efi").CombinedOutput(); err != nil {
+		t.Fatal(err, string(out))
+	}
+	if q, err = Inspect(); err != nil || q.Status != "SUPPORTED WITH WARNINGS" {
+		t.Fatal("idle EFI automount was not detected", q, err)
+	}
+}
 
 // Only the separately compiled VM test binary contains this process-kill hook.
 func vmPhaseHook(phase string) {
@@ -135,7 +208,7 @@ func TestVMRollbackFailure(t *testing.T) {
 func TestVMFailures(t *testing.T) {
 	q, err := Inspect()
 	if err != nil || q.Status != "SUPPORTED WITH WARNINGS" || os.Geteuid() != 0 {
-		t.Fatal("disposable Debian VM required", q, err)
+		t.Fatal("disposable VM required", q, err)
 	}
 	r, err := os.OpenRoot("/")
 	if err != nil {

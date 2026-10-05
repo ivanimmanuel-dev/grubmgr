@@ -212,9 +212,9 @@ func Inspect(p Paths) (Report, error) {
 		q.Reason = "GRUB and another bootloader have configuration evidence"
 	} else if q.GRUBInstalled {
 		q.Status = "read-only"
-		q.Reason = "Real activation is disabled in 0.1"
+		q.Reason = "Activation requires a tested disposable VM profile"
 		switch q.Distribution {
-		case "debian", "ubuntu":
+		case "debian", "ubuntu", "kali":
 			if q.Configs[0] == "/boot/grub/grub.cfg" && q.Defaults != "" && q.Utilities["grub-mkconfig"] != "" {
 				q.Backend = "debian-conventional"
 			}
@@ -244,7 +244,7 @@ func Inspect(p Paths) (Report, error) {
 		} else {
 			q.Status = "UNSUPPORTED"
 		}
-		q.Reason = "Activation requires the supported disposable Debian VM"
+		q.Reason = "Activation requires a supported disposable Linux VM"
 	}
 	return q, nil
 }

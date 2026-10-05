@@ -1,5 +1,7 @@
 # Disposable VM tests
 
+For Ubuntu, Kali and Arch, use the [Linux matrix harness](linux-support.md). The Debian harness below remains available for regression tests.
+
 The ordinary Go suite uses temporary fixtures. Real boot tests are separate and must run in the harness-created guest.
 
 ## Run

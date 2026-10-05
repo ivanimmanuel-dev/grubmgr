@@ -29,11 +29,13 @@ jobs:
         if: runner.os == 'Linux'
         run: go test -race ./...
       - run: go build ./cmd/...
-      - name: Build and inspect Debian package
+      - name: Build and inspect Linux packages
         if: runner.os == 'Linux'
         run: |
           python3 scripts/build-deb.py --output work/debian
           python3 scripts/check-deb.py work/debian/*.deb
+          python3 scripts/build-arch.py --deb work/debian/*.deb --output work/arch
+          python3 scripts/check-arch.py work/arch/*.pkg.tar.xz
           python3 -m py_compile scripts/*.py scripts/vm/*.py
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Linux'
@@ -43,3 +45,11 @@ jobs:
             work/debian/*.deb
             work/debian/*.sha256
             work/debian/*.manifest.json
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: grubmgr-arch-x86_64
+          path: |
+            work/arch/*.pkg.tar.xz
+            work/arch/*.sha256
+            work/arch/*.manifest.json

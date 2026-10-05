@@ -49,6 +49,9 @@ def build(go, output):
             dest.chmod(0o755)
         copy(ROOT/'packaging/io.github.ivanimmanuel.grubmgr.policy',
              'usr/share/polkit-1/actions/io.github.ivanimmanuel.grubmgr.policy')
+        # Optional administrator setup; package installation never reloads policy.
+        copy(ROOT/'packaging/apparmor/usr.bin.grubmgr',
+             'usr/share/grubmgr/apparmor/usr.bin.grubmgr')
         for name in ['LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md']:
             copy(ROOT/name, 'usr/share/doc/grubmgr/'+('copyright' if name == 'LICENSE' else name))
         for directory in ['docs', 'third_party']:
@@ -74,9 +77,9 @@ Installed-Size: {size}
 Depends: pkexec, polkitd
 Suggests: grub2-common, grub-theme-starfield, bubblewrap, qemu-system-x86, ovmf, xorriso, mtools
 Homepage: https://github.com/ivanimmanuel-dev/grubmgr
-Description: GRUB theme manager with experimental Debian VM activation
+Description: GRUB theme manager with experimental Linux VM activation
  Browse, validate, preview and manage reviewed GRUB theme packages.
- Real activation requires the explicitly marked disposable Debian 13 VM.
+ Real activation requires an explicitly supported disposable test VM.
  Physical-machine activation is disabled. No community installers run.
 ''')
         (control/'md5sums').write_text(''.join(

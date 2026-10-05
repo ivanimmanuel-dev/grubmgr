@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Exercise the shipped Polkit policy from a local login in the disposable VM."""
-import hashlib
 import json
 import os
 import pathlib
@@ -23,8 +22,10 @@ assert 'Active=yes' in session and 'Remote=no' in session and 'Seat=seat0' in se
 
 
 def fingerprint():
-    return [hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
-            for p in ['/etc/default/grub', '/boot/grub/grub.cfg']]
+    # The disposable tester already has sudo for harness setup/readback. Only
+    # this read-only measurement uses it; the CLI below still uses real Polkit.
+    data = subprocess.check_output(['sudo', '-n', 'sha256sum', '/etc/default/grub', '/boot/grub/grub.cfg'], text=True)
+    return [line.split()[0] for line in data.splitlines()]
 
 
 def attempt(case):
