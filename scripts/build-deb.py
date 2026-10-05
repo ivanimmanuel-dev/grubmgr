@@ -13,6 +13,18 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
+def source_epoch(env):
+    if 'SOURCE_DATE_EPOCH' in env:
+        value = env['SOURCE_DATE_EPOCH']
+        if not re.fullmatch(r'[0-9]+', value):
+            raise SystemExit('SOURCE_DATE_EPOCH must be a nonnegative integer.')
+        return int(value)
+    if (ROOT/'.git').exists():
+        return int(subprocess.check_output(
+            ['git', 'show', '-s', '--format=%ct', 'HEAD'], cwd=ROOT, text=True).strip())
+    return max(0, int((ROOT/'internal/cli/cli.go').stat().st_mtime))
+
+
 def build(go, output):
     if os.name != 'posix' or os.geteuid() == 0:
         raise SystemExit('Build as an ordinary Linux user.')
@@ -27,8 +39,7 @@ def build(go, output):
     archive = output/f'grubmgr_{deb_version}_amd64.deb'
     env = os.environ.copy()
     env.update(CGO_ENABLED='0', GOOS='linux', GOARCH='amd64')
-    env.setdefault('SOURCE_DATE_EPOCH', subprocess.check_output(
-        ['git', 'show', '-s', '--format=%ct', 'HEAD'], cwd=ROOT, text=True).strip())
+    env['SOURCE_DATE_EPOCH'] = str(source_epoch(env))
     with tempfile.TemporaryDirectory(prefix='grubmgr-deb-') as tmp:
         stage = pathlib.Path(tmp)/'package'
         stage.mkdir(mode=0o755)
@@ -54,8 +65,13 @@ def build(go, output):
              'usr/share/grubmgr/apparmor/usr.bin.grubmgr')
         for name in ['LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md']:
             copy(ROOT/name, 'usr/share/doc/grubmgr/'+('copyright' if name == 'LICENSE' else name))
-        for name in ['installation.md', 'usage.md', 'package-format.md', 'architecture.md', 'testing.md']:
+        for name in ['installation.md', 'usage.md', 'package-format.md']:
             copy(ROOT/'docs'/name, 'usr/share/doc/grubmgr/docs/'+name)
+        copy(ROOT/'examples/synthetic-recipe.json',
+             'usr/share/doc/grubmgr/examples/synthetic-recipe.json')
+        for source in (stage/'usr/share/doc/grubmgr').rglob('*.md'):
+            source.write_text(source.read_text(encoding='utf-8').replace('](LICENSE)', '](copyright)'),
+                              encoding='utf-8')
         for source in sorted((ROOT/'third_party').rglob('*')):
             if source.is_file():
                 copy(source, 'usr/share/doc/grubmgr/'+source.relative_to(ROOT).as_posix())

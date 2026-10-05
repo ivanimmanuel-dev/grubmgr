@@ -32,6 +32,8 @@ jobs:
       - name: Build and inspect Linux packages
         if: runner.os == 'Linux'
         run: |
+          python3 -m unittest discover -s scripts -p '*_test.py'
+          python3 scripts/check-doc-links.py
           python3 scripts/build-deb.py --output work/debian
           python3 scripts/check-deb.py work/debian/*.deb
           python3 scripts/build-arch.py --deb work/debian/*.deb --output work/arch

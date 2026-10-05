@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Verify Debian archive contents against the build manifest."""
 import hashlib
+import importlib.util
 import io
 import json
 import pathlib
@@ -8,6 +9,10 @@ import subprocess
 import sys
 import tarfile
 import xml.etree.ElementTree as ET
+
+spec = importlib.util.spec_from_file_location('doc_links', pathlib.Path(__file__).with_name('check-doc-links.py'))
+doc_links = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(doc_links)
 
 
 def check(archive):
@@ -21,6 +26,7 @@ def check(archive):
     payload = subprocess.check_output(['dpkg-deb', '--fsys-tarfile', str(archive)])
     with tarfile.open(fileobj=io.BytesIO(payload)) as data:
         actual = {}
+        documents = {}
         for member in data:
             name = member.name.removeprefix('./').rstrip('/')
             assert member.isfile() or member.isdir(), name
@@ -31,6 +37,8 @@ def check(archive):
             if member.isfile():
                 content = data.extractfile(member).read()
                 actual[name] = hashlib.sha256(content).hexdigest()
+                if name.startswith('usr/share/doc/grubmgr/'):
+                    documents[name.removeprefix('usr/share/doc/grubmgr/')] = content
                 if name in ('usr/bin/grubmgr', 'usr/libexec/grubmgr-helper', 'usr/libexec/grubmgr-preview-qemu'):
                     assert member.mode == 0o755 and content[:5] == b'\x7fELF\x02'
                     assert content[18:20] == b'\x3e\x00'  # x86-64 ELF
@@ -43,6 +51,7 @@ def check(archive):
             if name == 'var/lib/grubmgr':
                 assert member.mode == 0o700
         assert actual == manifest['files']
+        doc_links.check(documents)
     print(json.dumps({'package': archive.name, 'sha256': manifest['sha256'],
                       'files': len(actual), 'maintainer_scripts': False, 'checked': True}))
 

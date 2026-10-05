@@ -1,6 +1,6 @@
 # Package and recipe format
 
-Schema 1 describes theme data, provenance and compatibility. JSON decoding rejects unknown fields. Use [synthetic-recipe.json](../examples/synthetic-recipe.json) as a local fixture example; the [embedded catalog](../internal/catalog/catalog.json) contains the Linux helper recipes.
+Schema 1 describes theme data, provenance and compatibility. JSON decoding rejects unknown fields. Use [synthetic-recipe.json](../examples/synthetic-recipe.json) as a local fixture example; `grubmgr info ID` shows a theme’s catalog recipe.
 
 ## Recipe fields
 
@@ -79,4 +79,4 @@ PNG and JPEG files are decoded within resource limits. The PF2 inspector checks 
 
 `BOOT_UNVERIFIED` reports that no boot test was performed. Use preview to check rendering.
 
-Receipts retain the selected variant, validation report, installed and active flags, and a pin flag reserved for future update policy. Multiple immutable revisions can coexist. Select a full revision when an ID is ambiguous.
+Receipts retain the selected variant, validation report, installed and active flags. Multiple immutable revisions can coexist. Select a full revision when an ID is ambiguous.

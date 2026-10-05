@@ -93,5 +93,3 @@ Use `--json` for machine-readable results and `--log-json` for logs on stderr:
 ```sh
 grubmgr --json --log-json doctor
 ```
-
-`--root DIRECTORY` selects a synthetic fixture and keeps application state beneath that directory. See the [fixture walkthrough](testing.md#fixture-walkthrough).

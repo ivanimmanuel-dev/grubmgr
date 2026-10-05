@@ -1,24 +1,35 @@
 # GRUB Manager
 
-`grubmgr` imports, validates, previews and switches GRUB themes. It keeps theme revisions and transaction history so you can restore an earlier selection.
+Import, validate, preview and switch GRUB themes from the command line. Keep previous theme revisions and restore a selection with rollback.
 
-Version `0.3.0-rc.1` supports activation in specific Debian, Ubuntu, Kali and Arch QEMU VMs. Physical-machine and WSL activation are disabled. See [supported configurations](docs/installation.md#supported-configurations).
+**0.3.0-rc.1 · Linux VM preview.** Activation supports the [documented Debian, Ubuntu, Kali and Arch QEMU configurations](docs/installation.md#supported-configurations). Physical-machine and WSL activation are disabled.
+
+## Download
+
+| Your system | Package |
+| --- | --- |
+| Debian, Ubuntu or Kali · x86-64 | [Download .deb](https://github.com/ivanimmanuel-dev/grubmgr/releases/download/v0.3.0-rc.1/grubmgr_0.3.0~rc.1-1_amd64.deb) |
+| Arch · x86-64 | [Download Arch package](https://github.com/ivanimmanuel-dev/grubmgr/releases/download/v0.3.0-rc.1/grubmgr-0.3.0rc1-1-x86_64.pkg.tar.xz) |
+
+[Release details and checksums](https://github.com/ivanimmanuel-dev/grubmgr/releases/tag/v0.3.0-rc.1)
 
 ## Install
 
-Download a package from a successful [GitHub Actions run](https://github.com/ivanimmanuel-dev/grubmgr/actions/workflows/ci.yml). Use `grubmgr-debian-amd64` for Debian, Ubuntu or Kali, and `grubmgr-arch-x86_64` for Arch.
+Debian, Ubuntu or Kali:
 
 ```sh
-# Debian, Ubuntu or Kali
 sudo apt install ./grubmgr_0.3.0~rc.1-1_amd64.deb
+```
 
-# Arch
+Arch:
+
+```sh
 sudo pacman -U ./grubmgr-0.3.0rc1-1-x86_64.pkg.tar.xz
 ```
 
-Run `grubmgr doctor` to check your configuration. [Installation](docs/installation.md) covers building from source and setting up preview tools.
+Run `grubmgr doctor` to check your configuration. See [installation and preview setup](docs/installation.md) for requirements.
 
-## Use
+## Select a theme
 
 ```sh
 grubmgr search
@@ -27,41 +38,23 @@ grubmgr validate cyberpunk-demo
 grubmgr plan install cyberpunk-demo
 ```
 
-Read the plan, then apply its complete `plan_id`:
+Read the plan and apply its complete token:
 
 ```sh
 grubmgr apply PLAN_TOKEN
 grubmgr plan switch cyberpunk-demo
 ```
 
-Apply the switch plan's token to activate the theme. `install` copies assets; `switch` selects them for the boot menu.
+Apply the switch plan's token to select the theme for the boot menu. Use `grubmgr history` and `grubmgr plan rollback TRANSACTION_ID` to restore a previous selection.
 
-Use `grubmgr history` to find a transaction and `grubmgr plan rollback TRANSACTION_ID` to restore the theme selected before it. [Usage](docs/usage.md) covers variants, preview, removal and recovery.
+The catalog includes Cyberpunk Demo and Debian's Starfield theme. Local directories and archives can also be imported for validation and preview.
 
-## Themes
+## Help
 
-The catalog includes Cyberpunk Demo for all four VM profiles and Debian's Starfield theme for Debian 13. You can also import local directories or archives for validation and preview. Linux activation accepts the recipes bundled with the installed helper.
-
-## Development
-
-Requires Go 1.27.1:
-
-```sh
-go build -o grubmgr ./cmd/grubmgr
-go test ./...
-go vet ./...
-```
-
-On Windows, build with `-o grubmgr.exe`. The [testing guide](docs/testing.md) includes a fixture walkthrough and boot tests for contributors.
-
-## Documentation
-
-- [Installation and supported configurations](docs/installation.md)
-- [Usage](docs/usage.md)
-- [Theme package format](docs/package-format.md)
-- [Architecture](docs/architecture.md)
-- [Testing and package builds](docs/testing.md)
+- [Installation, preview tools and removal](docs/installation.md)
+- [Using themes, variants and rollback](docs/usage.md)
+- [Importing a theme with a recipe](docs/package-format.md)
 
 ## License
 
-GRUB Manager and its demo assets use the [MIT license](LICENSE). See [third-party notices](THIRD_PARTY_NOTICES.md) for dependencies and imported themes.
+GRUB Manager and its demo assets use the [MIT license](LICENSE). Dependencies and imported themes retain their [third-party notices](THIRD_PARTY_NOTICES.md).
