@@ -1,0 +1,11 @@
+# Original synthetic fixture; not an upstream community theme.
+title-text: "GRUB Manager synthetic demo"
+desktop-color: "#101020"
++ boot_menu {
+  left = 15%
+  top = 25%
+  width = 70%
+  height = 50%
+  item_color = "#00ffff"
+  selected_item_color = "#ff00ff"
+}

@@ -1,0 +1,9 @@
+*.go text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf
+fixtures/** text eol=lf
+internal/catalog/demo/** text eol=lf
+# License notice bytes have recorded checksums and must remain unchanged.
+third_party/licenses/** -text

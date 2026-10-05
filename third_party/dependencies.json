@@ -1,0 +1,186 @@
+[
+  {
+    "module": "modernc.org/sqlite",
+    "version": "v1.38.2",
+    "origin": "https://pkg.go.dev/modernc.org/sqlite@v1.38.2",
+    "license": "BSD-3-Clause AND SQLite public domain",
+    "integration": "unmodified linked Go module; selected files vary by target",
+    "notices": [
+      {
+        "path": "third_party/licenses/modernc.org__sqlite@v1.38.2/LICENSE",
+        "sha256": "c6fe05491a60ae13bcd223088d2705e36dede24e5587226231d2459ada5c4822"
+      },
+      {
+        "path": "third_party/licenses/modernc.org__sqlite@v1.38.2/SQLITE-LICENSE",
+        "sha256": "8438c9c89b849131ead81d5435cb97fcf052df5b0b286dda8a2d4c29e6cb3fd0"
+      }
+    ]
+  },
+  {
+    "module": "github.com/dustin/go-humanize",
+    "version": "v1.0.1",
+    "origin": "https://pkg.go.dev/github.com/dustin/go-humanize@v1.0.1",
+    "license": "MIT",
+    "integration": "unmodified linked Go module; selected files vary by target",
+    "notices": [
+      {
+        "path": "third_party/licenses/github.com__dustin__go-humanize@v1.0.1/LICENSE",
+        "sha256": "a973b4498c13eb74baa2a8e5c351426a6826f2fcdd909916dbe53ee2e755fd71"
+      }
+    ]
+  },
+  {
+    "module": "github.com/google/uuid",
+    "version": "v1.6.0",
+    "origin": "https://pkg.go.dev/github.com/google/uuid@v1.6.0",
+    "license": "BSD-3-Clause",
+    "integration": "unmodified linked Go module; selected files vary by target",
+    "notices": [
+      {
+        "path": "third_party/licenses/github.com__google__uuid@v1.6.0/LICENSE",
+        "sha256": "0a8d61ed3cbfd5312326e8126c31ce9c627a283adc99131b56896d29ada04b2d"
+      }
+    ]
+  },
+  {
+    "module": "github.com/mattn/go-isatty",
+    "version": "v0.0.20",
+    "origin": "https://pkg.go.dev/github.com/mattn/go-isatty@v0.0.20",
+    "license": "MIT",
+    "integration": "unmodified linked Go module; selected files vary by target",
+    "notices": [
+      {
+        "path": "third_party/licenses/github.com__mattn__go-isatty@v0.0.20/LICENSE",
+        "sha256": "08eab1118c80885fa1fa6a6dd7303f65a379fcb3733e063d20d1bbc2c76e6fa1"
+      }
+    ]
+  },
+  {
+    "module": "github.com/ncruces/go-strftime",
+    "version": "v0.1.9",
+    "origin": "https://pkg.go.dev/github.com/ncruces/go-strftime@v0.1.9",
+    "license": "MIT",
+    "integration": "unmodified linked Go module; selected files vary by target",
+    "notices": [
+      {
+        "path": "third_party/licenses/github.com__ncruces__go-strftime@v0.1.9/LICENSE",
+        "sha256": "38ae43959daf953a393a585b2988672cb65a5a541aca0d0be5e72595a0a16883"
+      }
+    ]
+  },
+  {
+    "module": "github.com/remyoudompheng/bigfft",
+    "version": "v0.0.0-20230129092748-24d4a6f8daec",
+    "origin": "https://pkg.go.dev/github.com/remyoudompheng/bigfft@v0.0.0-20230129092748-24d4a6f8daec",
+    "license": "BSD-3-Clause",
+    "integration": "unmodified linked Go module; selected files vary by target",
+    "notices": [
+      {
+        "path": "third_party/licenses/github.com__remyoudompheng__bigfft@v0.0.0-20230129092748-24d4a6f8daec/LICENSE",
+        "sha256": "dd26a7abddd02e2d0aba97805b31f248ef7835d9e10da289b22e3b8ab78b324d"
+      }
+    ]
+  },
+  {
+    "module": "golang.org/x/exp",
+    "version": "v0.0.0-20250620022241-b7579e27df2b",
+    "origin": "https://pkg.go.dev/golang.org/x/exp@v0.0.0-20250620022241-b7579e27df2b",
+    "license": "BSD-3-Clause",
+    "integration": "unmodified linked Go module; selected files vary by target",
+    "notices": [
+      {
+        "path": "third_party/licenses/golang.org__x__exp@v0.0.0-20250620022241-b7579e27df2b/LICENSE",
+        "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
+      }
+    ]
+  },
+  {
+    "module": "golang.org/x/sys",
+    "version": "v0.34.0",
+    "origin": "https://pkg.go.dev/golang.org/x/sys@v0.34.0",
+    "license": "BSD-3-Clause",
+    "integration": "unmodified linked Go module; selected files vary by target",
+    "notices": [
+      {
+        "path": "third_party/licenses/golang.org__x__sys@v0.34.0/LICENSE",
+        "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
+      }
+    ]
+  },
+  {
+    "module": "modernc.org/libc",
+    "version": "v1.66.3",
+    "origin": "https://pkg.go.dev/modernc.org/libc@v1.66.3",
+    "license": "BSD-3-Clause AND MIT (musl includes additional permissive notices; see COPYRIGHT-MUSL)",
+    "integration": "unmodified linked Go module; selected files vary by target",
+    "notices": [
+      {
+        "path": "third_party/licenses/modernc.org__libc@v1.66.3/LICENSE",
+        "sha256": "95ff867eb55a56935fa7492406cfa953fb7c13ca73f4c0a86ae05756b4605600"
+      },
+      {
+        "path": "third_party/licenses/modernc.org__libc@v1.66.3/LICENSE-GO",
+        "sha256": "2d36597f7117c38b006835ae7f537487207d8ec407aa9d9980794b2030cbc067"
+      },
+      {
+        "path": "third_party/licenses/modernc.org__libc@v1.66.3/COPYRIGHT-MUSL",
+        "sha256": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af"
+      },
+      {
+        "path": "third_party/licenses/modernc.org__libc@v1.66.3/honnef.co__go__netdb__LICENSE",
+        "sha256": "657707d00e00d3077e4ccfac2d6a123ad908c3f503370798eb2cb52e68e135a6"
+      },
+      {
+        "path": "third_party/licenses/modernc.org__libc@v1.66.3/EMBEDDED-PERMISSIVE-NOTICES.txt",
+        "sha256": "eb62d25ded697770ce2cfee6389b743e8699af11ed6ef03eee5520e11d5b977f"
+      }
+    ]
+  },
+  {
+    "module": "modernc.org/mathutil",
+    "version": "v1.7.1",
+    "origin": "https://pkg.go.dev/modernc.org/mathutil@v1.7.1",
+    "license": "BSD-3-Clause",
+    "integration": "unmodified linked Go module; selected files vary by target",
+    "notices": [
+      {
+        "path": "third_party/licenses/modernc.org__mathutil@v1.7.1/LICENSE",
+        "sha256": "bfa9bf72a72ca009fd62a8f84fca3dca67e51d93af96352723646599898b6cf5"
+      }
+    ]
+  },
+  {
+    "module": "modernc.org/memory",
+    "version": "v1.11.0",
+    "origin": "https://pkg.go.dev/modernc.org/memory@v1.11.0",
+    "license": "BSD-3-Clause",
+    "integration": "unmodified linked Go module; selected files vary by target",
+    "notices": [
+      {
+        "path": "third_party/licenses/modernc.org__memory@v1.11.0/LICENSE",
+        "sha256": "59895e669f48f168b6b858358f6005779cdf40a265f7828813061b56af67b496"
+      },
+      {
+        "path": "third_party/licenses/modernc.org__memory@v1.11.0/LICENSE-GO",
+        "sha256": "2d36597f7117c38b006835ae7f537487207d8ec407aa9d9980794b2030cbc067"
+      },
+      {
+        "path": "third_party/licenses/modernc.org__memory@v1.11.0/LICENSE-MMAP-GO",
+        "sha256": "c2eba69f20d05414538c3a5df7694dde392e065ff70882e1625e90f5d6659fff"
+      }
+    ]
+  },
+  {
+    "module": "Go runtime and standard library",
+    "version": "go1.27.1",
+    "origin": "https://go.dev/LICENSE",
+    "license": "BSD-3-Clause",
+    "integration": "linked runtime and standard library; compiler not bundled",
+    "notices": [
+      {
+        "path": "third_party/licenses/go@go1.27.1/LICENSE",
+        "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
+      }
+    ]
+  }
+]

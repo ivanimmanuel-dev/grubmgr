@@ -1,0 +1,8 @@
+/work/
+/outputs/
+/grubmgr
+/grubmgr.exe
+*.test
+coverage.out
+fixtures/**/.grubmgr/
+fixtures/**/boot/grub/themes/grubmgr/

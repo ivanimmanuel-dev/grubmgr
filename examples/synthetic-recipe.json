@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "id": "grubmgr/cyberpunk-demo",
+  "name": "Cyberpunk Demo (synthetic)",
+  "author": "GRUB Manager contributors",
+  "project_url": "",
+  "version": "1.0.0",
+  "source": {
+    "provider": "builtin",
+    "url": "builtin:cyberpunk-demo",
+    "upstream_revision": "synthetic-v1"
+  },
+  "theme_root": ".",
+  "entry": "theme.txt",
+  "variants": [
+    {
+      "id": "hd",
+      "root": "hd",
+      "entry": "theme.txt",
+      "resolutions": [
+        "1920x1080"
+      ]
+    }
+  ],
+  "license": {
+    "spdx": "MIT",
+    "notices": [
+      "LICENSE"
+    ],
+    "verified": true,
+    "evidence": "Original synthetic fixture created in this repository; LICENSE"
+  },
+  "compatibility": {
+    "backends": [
+      "fixture-debian"
+    ],
+    "requires": [
+      "gfxterm"
+    ],
+    "notes": [
+      "No physical boot or real GRUB rendering certification"
+    ]
+  },
+  "preview": {
+    "kind": "none"
+  },
+  "recipe_revision": "1",
+  "reviewed": true
+}

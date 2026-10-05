@@ -1,0 +1,31 @@
+name: verify
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.1'
+          cache: true
+      - name: Formatting
+        shell: bash
+        run: test -z "$(gofmt -l cmd internal tools)"
+      - run: go mod download
+      - run: go mod verify
+      - run: go run ./tools/checklicenses
+      - run: go vet ./...
+      - run: go test -count=1 ./...
+      - name: Linux race detection
+        if: runner.os == 'Linux'
+        run: go test -race ./...
+      - run: go build ./cmd/grubmgr
