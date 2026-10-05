@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -50,8 +51,11 @@ func TestLocalAndAmbiguity(t *testing.T) {
 	if _, e = Import(p, d, ""); e == nil {
 		t.Fatal("ambiguous roots accepted")
 	}
-	if _, e = Import(p, "community/minegrub", ""); e == nil {
-		t.Fatal("browse-only package imported")
+}
+func TestRemoteImportRequiresRecipe(t *testing.T) {
+	p := testutil.Root(t, "debian")
+	if _, err := Import(p, "https://example.invalid/theme.zip", ""); err == nil || !strings.Contains(err.Error(), "RECIPE_REQUIRED") {
+		t.Fatal("expected a recipe requirement before download", err)
 	}
 }
 func TestArchiveAndRecipe(t *testing.T) {

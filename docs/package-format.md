@@ -1,6 +1,6 @@
 # Package and recipe format
 
-Schema 1 describes theme data, provenance and compatibility. JSON decoding rejects unknown fields. Use [synthetic-recipe.json](../examples/synthetic-recipe.json) as a local fixture example; the [embedded catalog](../internal/catalog/catalog.json) contains the recipes approved by the Linux helper.
+Schema 1 describes theme data, provenance and compatibility. JSON decoding rejects unknown fields. Use [synthetic-recipe.json](../examples/synthetic-recipe.json) as a local fixture example; the [embedded catalog](../internal/catalog/catalog.json) contains the Linux helper recipes.
 
 ## Recipe fields
 
@@ -29,7 +29,7 @@ Schema 1 describes theme data, provenance and compatibility. JSON decoding rejec
 | `kali-rolling-uefi-vm` | Kali VM |
 | `arch-uefi-vm` | Arch VM |
 
-The [Linux profiles](linux-support.md) define the exact GRUB versions and layouts. The fixture planner also checks any declared architecture and firmware values. The Linux helper checks its compiled recipe and profile independently; adding a backend name or setting `reviewed` in a local recipe does not authorize activation. Required capabilities such as `gfxterm` are descriptive metadata checked during integration testing.
+The [supported configurations](installation.md#supported-configurations) define the exact GRUB versions and layouts. The fixture planner also checks any declared architecture and firmware values. The Linux helper checks its compiled recipe and profile independently; adding a backend name or setting `reviewed` in a local recipe does not authorize activation. Required capabilities such as `gfxterm` are descriptive metadata checked during integration testing.
 
 ## Package identity
 
@@ -77,6 +77,6 @@ Asset references resolve relative to the entry directory. Nested paths and pixma
 
 PNG and JPEG files are decoded within resource limits. The PF2 inspector checks section framing, signature, `NAME`, `CHIX` record size and `DATA` presence. Glyph rendering and other image formats require preview or additional validator support. Executable signatures and script extensions are rejected.
 
-Every report includes `BOOT_UNVERIFIED`: static validation covers package structure and assets, while the VM suite checks rendering and boot integration.
+`BOOT_UNVERIFIED` reports that no boot test was performed. Use preview to check rendering.
 
 Receipts retain the selected variant, validation report, installed and active flags, and a pin flag reserved for future update policy. Multiple immutable revisions can coexist. Select a full revision when an ID is ambiguous.

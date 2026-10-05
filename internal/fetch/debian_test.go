@@ -39,16 +39,3 @@ func TestDebianImportNeverFallsBackToHost(t *testing.T) {
 		t.Fatal("unapproved installed-package source accepted")
 	}
 }
-
-func TestTsushimaRemainsBrowseOnly(t *testing.T) {
-	entry, err := catalog.Find("grub-of-tsushima")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if entry.Recipe.Reviewed || entry.Recipe.License.Verified {
-		t.Fatal("unconfirmed asset rights approved")
-	}
-	if _, err = Import(system.Paths{Root: t.TempDir()}, "grub-of-tsushima", ""); err == nil || !strings.Contains(err.Error(), "no reviewed package recipe") {
-		t.Fatal("browse-only theme was fetched", err)
-	}
-}

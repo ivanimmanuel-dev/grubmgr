@@ -111,7 +111,7 @@ func Import(p system.Paths, source, recipeFile string) (model.Package, error) {
 	}
 	remote := strings.HasPrefix(source, "https://") || strings.HasPrefix(source, "http://")
 	if remote && (!explicit || !recipe.Reviewed || recipe.Source.URL != source) {
-		return result, output.Fail(output.Unsupported, "RECIPE_REQUIRED", "remote artifacts require an reviewed recipe with the exact download URL")
+		return result, output.Fail(output.Unsupported, "RECIPE_REQUIRED", "remote artifacts require a reviewed recipe with the exact download URL")
 	}
 	if e = p.Ensure(); e != nil {
 		return result, e

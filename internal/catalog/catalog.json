@@ -1,10 +1,10 @@
 [
   {
-    "status": "Test theme",
+    "status": "Built-in",
     "recipe": {
       "schema_version": 1,
       "id": "grubmgr/cyberpunk-demo",
-      "name": "Cyberpunk Demo (synthetic)",
+      "name": "Cyberpunk Demo",
       "author": "GRUB Manager contributors",
       "project_url": "",
       "version": "1.0.0",
@@ -31,7 +31,7 @@
           "LICENSE"
         ],
         "verified": true,
-        "evidence": "Original synthetic fixture created in this repository; LICENSE"
+        "evidence": "Original demo assets; LICENSE"
       },
       "compatibility": {
         "backends": [
@@ -43,20 +43,17 @@
         ],
         "requires": [
           "gfxterm"
-        ],
-        "notes": [
-          "No physical boot or real GRUB rendering certification"
         ]
       },
       "preview": {
         "kind": "none"
       },
-      "recipe_revision": "2",
+      "recipe_revision": "3",
       "reviewed": true
     }
   },
   {
-    "status": "Debian 13 VM tested package",
+    "status": "Debian 13",
     "tree_sha256": "b85ca5d4edb4af357c3ffa67bdf4dc74e43c436d94354ea2c714c63970cc4739",
     "recipe": {
       "schema_version": 1,
@@ -108,73 +105,6 @@
       },
       "recipe_revision": "1",
       "reviewed": true
-    }
-  },
-  {
-    "status": "Unreviewed; browse only",
-    "recipe": {
-      "schema_version": 1,
-      "id": "community/minegrub",
-      "name": "Minegrub (upstream link)",
-      "author": "Lxtharia",
-      "project_url": "https://github.com/Lxtharia/minegrub-theme",
-      "version": "unknown",
-      "source": {
-        "provider": "github",
-        "url": "https://github.com/Lxtharia/minegrub-theme",
-        "upstream_revision": "unreviewed"
-      },
-      "theme_root": ".",
-      "entry": "theme.txt",
-      "variants": [],
-      "license": {
-        "spdx": "",
-        "notices": [],
-        "verified": false
-      },
-      "compatibility": {
-        "backends": [],
-        "requires": []
-      },
-      "preview": {
-        "kind": "none"
-      },
-      "recipe_revision": "discovery-1",
-      "reviewed": false
-    }
-  },
-  {
-    "status": "Browse only: artwork and font permissions unconfirmed",
-    "recipe": {
-      "schema_version": 1,
-      "id": "ivanimmanuel-dev/grub-of-tsushima",
-      "name": "Grub of Tsushima",
-      "author": "ivanimmanuel-dev",
-      "project_url": "https://github.com/ivanimmanuel-dev/grub-of-tsushima",
-      "version": "unreviewed",
-      "source": {
-        "provider": "github",
-        "url": "https://github.com/ivanimmanuel-dev/grub-of-tsushima",
-        "upstream_revision": "unreviewed"
-      },
-      "theme_root": ".",
-      "entry": "theme.txt",
-      "variants": [],
-      "license": {
-        "spdx": "",
-        "notices": [],
-        "verified": false,
-        "evidence": "Permissions for the credited Sony/Sucker Punch artwork and third-party fonts are unconfirmed."
-      },
-      "compatibility": {
-        "backends": [],
-        "requires": []
-      },
-      "preview": {
-        "kind": "none"
-      },
-      "recipe_revision": "discovery-1",
-      "reviewed": false
     }
   }
 ]

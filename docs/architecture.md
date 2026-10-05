@@ -1,42 +1,34 @@
 # Architecture
 
-The Go CLI uses shared packages for ingestion, validation, planning, receipts, transactions and preview. `internal/debian` contains the Linux activation service for Debian, Ubuntu, Kali and Arch. `internal/backend` and `internal/transaction` provide the synthetic fixture engine selected by `--root`.
+The Go CLI shares ingestion, validation and storage code with two transaction engines. `internal/debian` implements Linux activation for all four distributions; `internal/backend` and `internal/transaction` implement synthetic fixtures.
 
-```mermaid
-flowchart TD
-  CLI[User CLI] --> Fetch[Import and validate]
-  Fetch --> User[User package store]
-  CLI --> Preview[Isolated GRUB preview]
-  User --> Polkit[Polkit authorization]
-  Polkit --> Check[Helper verifies package and plan]
-  Check --> Root[Root cache and SQLite journal]
-  Root --> Candidate[Generate and check configuration]
-  Candidate --> Activate[Replace configuration]
-```
+## Package storage
 
-Go supplies archive, compression, TLS, hashing, JSON and image decoding. `modernc.org/sqlite` stores receipts and journals. GRUB, Polkit and the preview stack are external system tools; see [reuse decisions](reuse-plan.md).
+Imports are staged, validated and moved into an immutable revision directory on the same filesystem. A revision hashes the recipe and file inventory, including license notices. SQLite stores receipts and transaction journals.
 
-## Packages and plans
-
-A revision identifies its recipe, file inventory and content digest. Imports are staged on the package store's filesystem, validated, then promoted to a revision directory. Assets and license notices share the same inventory.
-
-The Linux helper receives bounded file bytes and a manifest. It checks the recipe against its compiled catalog and reconstructs the inventory independently. User-owned receipts and paths have no authority over the root store.
-
-| Store | Location and purpose |
+| Store | Location |
 | --- | --- |
-| User imports | XDG data directory; fetched content and manifests |
-| User receipts | XDG state directory; SQLite package records |
-| Preview output | XDG cache directory; images and logs |
-| Helper state | `/var/lib/grubmgr/{data,state,cache}`; root-owned imports, receipts and journals |
+| User imports | XDG data directory |
+| User receipts | XDG state directory |
+| Preview images and logs | XDG cache directory |
+| Helper imports, receipts and journals | `/var/lib/grubmgr/{data,state,cache}` |
 | Installed assets | `/boot/grub/themes/grubmgr/NAMESPACE/NAME/REVISION` |
 
-Planning reads the current environment and receipts. Its token binds the action, target, variant, package revision and system fingerprint. Apply acquires the manager and distro package locks, rebuilds the plan and compares tokens. A changed fingerprint requires a new plan. Root-store operations, including planning and status, require Polkit authorization.
+The [package format](package-format.md) defines identity, extraction limits and validation rules.
 
-`install` copies assets and records them. `switch` selects an installed revision. `remove` clears the installed state and deactivates the revision if active, retaining its files. `rollback` selects the managed theme that preceded a committed transaction. An earlier unmanaged theme cannot be restored because its assets are outside the receipt inventory.
+## Privileged helper
 
-## Transactions
+The CLI sends bounded JSON through `/usr/bin/pkexec /usr/libexec/grubmgr-helper`. The protocol provides `inspect`, `status`, `history`, `plan`, `apply` and `recover`. Executable paths and destinations come from the selected distribution profile.
 
-Both engines record these phases:
+Polkit requires administrator authentication in an active local session. Terminal callers register `pkttyagent` using their process ID and kernel start time; passwords pass directly through the terminal.
+
+The helper receives package bytes and a manifest, checks the recipe against its compiled catalog, and rebuilds the file inventory. It verifies digests, ownership and configuration fingerprints before writing to its root-owned store. User receipts cannot approve a package.
+
+GRUB tools run at fixed paths with a cleared environment, bounded output and a timeout. Existing root-owned GRUB scripts are administrative configuration used by the generator.
+
+## Plans and transactions
+
+A plan token binds the action, target, variant, package revision and system fingerprint. Apply acquires the manager and distribution package locks, rebuilds the plan, and compares tokens.
 
 ```text
 planned → prepared → assets_staged → settings_staged
@@ -44,24 +36,20 @@ planned → prepared → assets_staged → settings_staged
 failure → recovering → rolled_back | recovery_required
 ```
 
-The Linux backend edits `GRUB_THEME` in `/etc/default/grub`, preserving unrelated bytes. The profile's fixed `grub-mkconfig` writes `/boot/grub/.grubmgr-TRANSACTION.cfg`. The helper runs `/usr/bin/grub-script-check`, checks for the selected theme and Linux entries, and replaces `/boot/grub/grub.cfg` with a synced rename. It preserves file ownership and permissions; targets with extended attributes require a separate implementation.
+Activation changes `GRUB_THEME` in `/etc/default/grub`, preserving unrelated bytes. The profile's generator writes `/boot/grub/.grubmgr-TRANSACTION.cfg`. The helper runs `grub-script-check`, checks the selected theme and Linux entries, then replaces `/boot/grub/grub.cfg` with a synced rename that preserves ownership and permissions. Files with extended attributes are rejected.
 
-The journal records original bytes and expected hashes. Immediate recovery restores snapshots when the current files match either the original or expected state, then verifies the restored bytes. A conflicting edit retains the journal with `recovery_required`. Later rollback regenerates configuration with the current kernels and the retained theme.
+The journal records original bytes and expected hashes. Recovery restores snapshots when the current files match either the original or expected state. A conflicting edit leaves the transaction in `recovery_required`. Later rollback generates a fresh configuration with the current kernels and a retained theme revision.
 
-SQLite uses full synchronous commits. Configuration replacement, asset staging and database commits are separate filesystem operations coordinated by the journal. Root-owned assets are retained after failure and removal; garbage collection is unimplemented.
+SQLite uses full synchronous commits. Configuration replacement, asset staging and receipt commits are coordinated by the journal. Theme assets remain after failure and removal.
 
-## Concurrency
+## Locks and fixtures
 
-The helper uses `flock` for its own operations and POSIX locks for dpkg. Process exit releases those locks. Pacman's exclusive lock uses a durable ownership file; recovery reclaims the lock only when inode identity and contents match. Other administrators can bypass these advisory locks, so apply and recovery also check configuration fingerprints.
+The helper takes `flock` for its own operations and POSIX locks for dpkg. Pacman uses an exclusive `db.lck` hard-linked to a durable ownership file; recovery reclaims it only when inode identity and contents match. Configuration fingerprints also detect edits made outside these locks.
 
-## Fixtures
-
-Fixtures use synthetic configuration generation and user-owned stores. Linux replacement uses rename. Windows writes use the recovery journal and in-place replacement. Exclusive lock files may need manual removal after a killed fixture process; see [fixture recovery](testing.md#recovery-demo).
-
-Fixture tests cover package and transaction behavior. The separate VM suite covers GRUB generation, authorization and boot integration.
+Fixtures use synthetic configuration generation and user-owned stores. Linux replacement uses rename; Windows fixture writes use in-place replacement backed by the recovery journal. [Fixture recovery](testing.md#fixture-recovery) describes stale lock handling.
 
 ## Preview
 
-The optional `grub2-theme-preview` 2.10.0 process constructs a boot image from a generated menu. Bubblewrap exposes read-only system tools and one theme, a private temporary filesystem, and one output directory. The fixed QEMU adapter uses software emulation, read-only generated media, disabled networking and a bounded runtime. It waits for the menu, captures a frame through QMP and writes a PNG.
+`grub2-theme-preview` 2.10.0 constructs a boot image from a generated menu. Bubblewrap exposes read-only system tools and the selected theme, a private temporary filesystem, and an output directory. The QEMU adapter uses software emulation, read-only generated media, disabled networking and a bounded runtime. It waits for the menu, captures a frame through QMP and writes a PNG.
 
-Preview checks appearance in guest GRUB. Activation support is determined separately by the [Linux profiles](linux-support.md).
+Ubuntu's optional AppArmor profile grants the application user namespaces; Bubblewrap supplies the process and filesystem isolation. See [preview setup](installation.md#preview-setup).

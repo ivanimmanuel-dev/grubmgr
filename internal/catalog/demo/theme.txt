@@ -1,4 +1,3 @@
-# Original synthetic fixture; not an upstream community theme.
 title-text: "GRUB Manager synthetic demo"
 desktop-color: "#101020"
 + boot_menu {

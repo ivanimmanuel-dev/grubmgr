@@ -63,7 +63,7 @@ func TestErrorsAndPreview(t *testing.T) {
 	for _, tt := range []struct {
 		args []string
 		code int
-	}{{[]string{"wat"}, 2}, {[]string{"apply", "bad-token"}, 2}, {[]string{"fetch", "community/minegrub"}, 4}, {[]string{"--root"}, 2}} {
+	}{{[]string{"wat"}, 2}, {[]string{"apply", "bad-token"}, 2}, {[]string{"fetch", "https://example.invalid/theme.zip"}, 4}, {[]string{"--root"}, 2}} {
 		var out, err bytes.Buffer
 		code := Run(append([]string{"--root", p.Root, "--json"}, tt.args...), &out, &err)
 		if code != tt.code || !json.Valid(err.Bytes()) {

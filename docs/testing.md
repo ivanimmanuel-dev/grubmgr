@@ -1,4 +1,4 @@
-# Testing
+# Testing and package builds
 
 ## Automated checks
 
@@ -13,9 +13,9 @@ test -z "$(gofmt -l cmd internal tools)"
 go build ./cmd/...
 ```
 
-CI runs Windows and Linux tests, Linux race detection, package builds and archive inspection. Ordinary tests use temporary synthetic roots and an in-process HTTPS server. GRUB generation, QEMU and the privileged helper are exercised by the separate VM suite.
+On Linux, also run `go test -race ./...`. CI runs both platforms and builds the Linux packages. Ordinary tests use temporary fixtures and a local HTTPS server. The VM suite exercises the privileged helper and GRUB.
 
-On Windows, a short temporary path avoids path-length restrictions:
+On Windows, use a short temporary path if tests reach the filesystem path limit:
 
 ```powershell
 New-Item -ItemType Directory -Force work/test-tmp | Out-Null
@@ -24,38 +24,70 @@ $env:TMP = $env:TEMP
 go test ./...
 ```
 
-HTTPS tests require local sockets. Case-collision directory tests skip on case-insensitive Windows filesystems; equivalent ZIP checks still run. Symlink tests skip when the account cannot create links. Linux CI covers both cases.
+Case-collision and symlink tests skip when the filesystem or account cannot create those inputs. Linux CI covers them.
 
-## Coverage
+## Fixture walkthrough
 
-| Area | Cases |
-| --- | --- |
-| CLI | Import, validation, install/switch plans and application, status/history, JSON and exit codes |
-| Detection | Debian, Arch, Fedora EFI stub, non-GRUB and ambiguous fixtures; rooted inspection |
-| Ingestion | Traversal, absolute paths, duplicate/case conflicts, links, special files, resource limits, HTTPS digests and redirect policy |
-| Identity | Repeatable imports, tampering, ambiguous roots, exact revision selection and notice retention |
-| Validation | Nested images, palette PNG, missing/case-mismatched assets, broken images, scripts, PF2 names/framing and variants |
-| Planning | Read-only snapshots, fingerprints, stale state, unknown provenance and unsupported backends |
-| Transactions | Phase and commit failures, install without activation, switching, removal, rollback and asset retention |
-| Recovery | Interrupted journals, restore failures, external edits and pending-transaction refusal |
-| Boot inventory | Later rollback after adding a kernel entry |
-| Containment | Symlink escapes and hardlink targets |
-| Licenses | Dependency versions, preserved notice hashes and module integrity |
+Copy a synthetic root before experimenting:
 
-`fixtures/` contains synthetic system text. Tests generate archive, image and PF2 samples. `internal/catalog/demo` contains the original multi-variant theme. Copy a fixture into `work/` for manual testing; keep real mounted installations outside fixture workflows.
+```sh
+mkdir -p work
+cp -R fixtures/debian work/demo-debian
+go build -o grubmgr ./cmd/grubmgr
+./grubmgr --root work/demo-debian fetch cyberpunk-demo
+./grubmgr --root work/demo-debian validate cyberpunk-demo
+./grubmgr --root work/demo-debian plan install cyberpunk-demo
+./grubmgr --root work/demo-debian apply PLAN_TOKEN
+./grubmgr --root work/demo-debian plan switch cyberpunk-demo
+```
 
-## Recovery demo
+Replace `PLAN_TOKEN` with the complete `plan_id` and apply the switch plan separately. In PowerShell, use `Copy-Item -Recurse fixtures/debian work/demo-debian` and build `grubmgr.exe`. Keep the same `--root` for every command. Fixture generation edits synthetic files beneath that root.
 
-Failure injection uses the Go test dependency `transaction.Faults`. Focused recovery tests:
+### Fixture recovery
+
+Focused recovery tests:
 
 ```sh
 go test -v ./internal/transaction -run 'TestFailuresEveryPhase|TestSwitchFailuresRetainActiveAssets|TestInterruptedRecovery|TestRecoveryFailureAndDrift'
 ```
 
-After killing a fixture process, confirm it has stopped and preserve the fixture root and SQLite files. Remove its stale `.grubmgr/apply.lock` and `.grubmgr/state/operation.lock`, if present, then run `grubmgr --root ROOT recover`. A hash conflict requires inspection of the snapshots and competing files before retrying. Recovery output can include configuration text.
+After killing a fixture process, confirm it has stopped before removing stale `.grubmgr/apply.lock` and `.grubmgr/state/operation.lock` files. Run `grubmgr --root ROOT recover`. Hash conflicts require inspection of the snapshots and competing files.
+
+## Package builds
+
+Use an ordinary Linux account with Go 1.27.1, Python 3.11+, Git and dpkg-deb:
+
+```sh
+python3 scripts/build-deb.py --output outputs/debian
+python3 scripts/check-deb.py outputs/debian/*.deb
+python3 scripts/build-arch.py --deb outputs/debian/*.deb --output outputs/arch
+python3 scripts/check-arch.py outputs/arch/*.pkg.tar.xz
+```
+
+`--go PATH` selects the compiler for the Debian build. The Arch package uses the same executables and notices with pacman metadata. Both builds produce an adjacent checksum and file manifest. Archive inspection checks hashes, ownership, permissions, executable architecture and Polkit policy.
+
+The build targets Linux amd64 with CGO disabled and uses the source commit timestamp unless `SOURCE_DATE_EPOCH` is set. It includes the user guides and dependency notices under `/usr/share/doc/grubmgr`.
 
 ## VM tests
 
-The [Debian harness](vm-testing.md) and [Linux matrix](linux-support.md#build-and-test) exercise authorization, package installation, activation, reboots, kernel-preserving rollback, failure recovery, preview and removal/reinstallation. Tests compiled with `grubmgr_vmtest` run only inside the disposable guests.
+Host requirements: Linux, Go, Python 3.11+, OpenSSH, QEMU system-x86 and qemu-img, OVMF, SeaBIOS, genisoimage, Git and dpkg-deb. Run as an ordinary user:
 
-For recorded results, see [Debian package verification](debian-package-verification.md) and [Linux VM verification](linux-verification.md). Each report identifies its archive and test scope.
+```sh
+python3 scripts/vm/run.py
+python3 scripts/vm/run-matrix.py ubuntu --package outputs/debian/grubmgr_0.3.0~rc.1-1_amd64.deb
+python3 scripts/vm/run-matrix.py kali --package outputs/debian/grubmgr_0.3.0~rc.1-1_amd64.deb
+python3 scripts/vm/run-matrix.py arch --package outputs/arch/grubmgr-0.3.0rc1-1-x86_64.pkg.tar.xz
+```
+
+The Debian harness accepts `--deb PATH`; otherwise it builds a package. Both harnesses accept `--go PATH` and `--tools-root DIRECTORY`. Existing packages need their adjacent `.manifest.json`. Image sources and hashes are pinned in `scripts/vm/run.py` and `scripts/vm/targets.json`.
+
+Each run freezes its package, test binary and guest scripts, creates a fresh disk overlay, and tests:
+
+- Installed files and administrator authentication, including cancellation and an incorrect password.
+- Theme activation, reboot, variant switching and rollback after a kernel installation.
+- Transaction interruptions, process termination, package locks, generator errors, stale plans and conflicting edits.
+- Disk-full file replacement, preview, and package removal/reinstallation.
+
+The Debian run also imports and activates Starfield. Tests built with `grubmgr_vmtest` use the guest identity check before mutation. A `PASS` file is written after all stages and the final input-hash check succeed. Logs and screenshots are saved under `work/vm-runs`.
+
+The harness stops QEMU and removes runtime SSH credentials on exit. Once you have saved the logs you need, delete the stopped run's overlay, seed image and firmware-variable copy. Delete a cached base image only after removing overlays that depend on it.

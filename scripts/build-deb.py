@@ -54,10 +54,11 @@ def build(go, output):
              'usr/share/grubmgr/apparmor/usr.bin.grubmgr')
         for name in ['LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md']:
             copy(ROOT/name, 'usr/share/doc/grubmgr/'+('copyright' if name == 'LICENSE' else name))
-        for directory in ['docs', 'third_party']:
-            for source in sorted((ROOT/directory).rglob('*')):
-                if source.is_file():
-                    copy(source, 'usr/share/doc/grubmgr/'+source.relative_to(ROOT).as_posix())
+        for name in ['installation.md', 'usage.md', 'package-format.md', 'architecture.md', 'testing.md']:
+            copy(ROOT/'docs'/name, 'usr/share/doc/grubmgr/docs/'+name)
+        for source in sorted((ROOT/'third_party').rglob('*')):
+            if source.is_file():
+                copy(source, 'usr/share/doc/grubmgr/'+source.relative_to(ROOT).as_posix())
         # Dpkg retains this directory on removal/purge if it contains receipts.
         (stage/'var/lib/grubmgr').mkdir(parents=True)
         for directory in stage.rglob('*'):

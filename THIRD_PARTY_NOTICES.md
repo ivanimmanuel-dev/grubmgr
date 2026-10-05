@@ -1,6 +1,6 @@
 # Third-party notices
 
-Original GRUB Manager code and demo assets are Copyright (c) 2026 GRUB Manager contributors, under the [MIT license](LICENSE). The theme validator and PF2 inspector are original implementations. The projects examined in the [ecosystem audit](docs/ecosystem-audit.md) are research references.
+Original GRUB Manager code and demo assets are Copyright (c) 2026 GRUB Manager contributors, under the [MIT license](LICENSE).
 
 ## Linked dependencies
 
@@ -21,7 +21,6 @@ The following unmodified Go modules are pinned in `go.mod` and verified through 
 | golang.org/x/sys | v0.34.0 | BSD-3-Clause; OS APIs, including hardlink checks |
 | Go runtime and standard library | go1.27.1 build | BSD-3-Clause; archive/TLS/HTTP/JSON/image/hash primitives |
 
-
 `go run ./tools/checklicenses` checks module versions and notice hashes. Dependency upgrades require a review of changed files and embedded notices. The compiler and development-only module-cache tools are excluded from release archives.
 
 ## External programs
@@ -32,6 +31,4 @@ The following unmodified Go modules are pinned in `go.mod` and verified through 
 
 The built-in demo includes its full MIT notice in every imported and installed revision.
 
-The `debian/starfield` recipe imports Debian's installed `grub-theme-starfield` 2.12-9+deb13u2 package. Every revision preserves `theme.txt`, `README`, `DEBIAN-COPYRIGHT`, `FONT-COPYRIGHT` and `GPL-3`. The notices identify the layout as MIT, artwork as CC-BY-SA-3.0, and DejaVu font data as Bitstream-Vera with public-domain changes. See the [recipe and content pin](docs/debian-backend.md#starfield-import).
-
-Minegrub and Grub of Tsushima are catalog links pending recipe and asset-license review. Their artwork is not included in this repository. Imported themes retain their own notices and licenses.
+The `debian/starfield` recipe imports Debian's installed `grub-theme-starfield` 2.12-9+deb13u2 package. Every revision preserves `theme.txt`, `README`, `DEBIAN-COPYRIGHT`, `FONT-COPYRIGHT` and `GPL-3`. The notices identify the layout as MIT, artwork as CC-BY-SA-3.0, and DejaVu font data as Bitstream-Vera with public-domain changes. The [catalog](internal/catalog/catalog.json) records its source and content digest.

@@ -34,13 +34,13 @@ Usage: grubmgr [--json] [--log-json] [--root FIXTURE] COMMAND
   list                              Show imported packages
   status | history                  Show managed state and transactions
   plan install|switch|remove ID [--variant ID]
-  plan rollback TRANSACTION_ID      Select the theme used before a transaction
+  plan rollback TRANSACTION_ID       Restore the previous theme selection
   apply TOKEN                       Apply a fixture or supported VM plan
   recover                           Recover an interrupted transaction
   preview ID [--variant ID]          Render a menu with GRUB and QEMU
 
 Activation supports marked fixtures and specific Linux test VMs.
-Install copies assets; switch activates a theme. Review each plan before applying it.
+Install copies assets; switch activates a theme.
 `
 
 type options struct {
