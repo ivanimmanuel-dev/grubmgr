@@ -1,4 +1,4 @@
-// Package backend contains only a synthetic backend. No process execution exists here.
+// Package backend generates configuration for synthetic filesystem fixtures.
 package backend
 
 import (
@@ -33,8 +33,7 @@ func Settings(before []byte, theme string) ([]byte, error) {
 const start = "# grubmgr fixture theme begin"
 const end = "# grubmgr fixture theme end"
 
-// Candidate preserves every byte outside the manager-owned synthetic block.
-// This is deliberately not a substitute for grub-mkconfig or a GRUB syntax checker.
+// Candidate updates the fixture theme block and preserves surrounding bytes.
 func Candidate(current []byte, theme string) ([]byte, error) {
 	b := current
 	a := bytes.Index(b, []byte(start))

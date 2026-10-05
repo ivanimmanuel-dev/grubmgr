@@ -14,9 +14,8 @@ import (
 	"time"
 )
 
-// Register Polkit's own unprivileged terminal agent. Older pkexec releases can
-// fail to authenticate with their built-in agent. Passwords go directly through
-// the controlling terminal, never through our helper's JSON input or output.
+// terminalAgent registers pkttyagent to handle authentication on the controlling
+// terminal, including with pkexec versions whose built-in agent fails.
 func terminalAgent(ctx context.Context) (func(), error) {
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {

@@ -89,7 +89,7 @@ func TestVMEFIAutomount(t *testing.T) {
 	}
 }
 
-// Only the separately compiled VM test binary contains this process-kill hook.
+// vmPhaseHook interrupts the test process at a selected journal boundary.
 func vmPhaseHook(phase string) {
 	if os.Getenv("GRUBMGR_VM_KILL_PHASE") == phase {
 		_ = syscall.Kill(os.Getpid(), syscall.SIGKILL)
@@ -203,8 +203,6 @@ func TestVMRollbackFailure(t *testing.T) {
 	}
 }
 
-// This file is compiled only for the separately built disposable-VM test binary.
-// No shipped CLI/helper flag enables failure injection.
 func TestVMFailures(t *testing.T) {
 	q, err := Inspect()
 	if err != nil || q.Status != "SUPPORTED WITH WARNINGS" || os.Geteuid() != 0 {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package the verified Linux payload for pacman, without installing anything."""
+"""Build a pacman archive from the verified Debian package payload."""
 import argparse
 import hashlib
 import io
@@ -30,7 +30,7 @@ def build(deb, output):
         info = f'''pkgname = grubmgr
 pkgbase = grubmgr
 pkgver = {version}
-pkgdesc = GRUB theme manager with experimental disposable VM activation
+pkgdesc = GRUB theme package manager (experimental VM support)
 url = https://github.com/ivanimmanuel-dev/grubmgr
 builddate = {int(epoch)}
 packager = Ivan Immanuel

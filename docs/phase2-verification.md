@@ -1,12 +1,12 @@
-# Phase 2 verification
+# Debian backend verification — 0.2.0-rc.1
 
-Verified on 2026-10-05. `v0.2.0-rc.1` is ready for experimental use in the specified disposable VM. It is not a physical-machine release.
+Historical development-run record, 2026-10-05, for `0.2.0-rc.1`. Current profiles are documented in [Linux support](linux-support.md).
 
 A subsequent [Debian package run](debian-package-verification.md) completed with frozen inputs from start to finish and tested the production Polkit terminal password prompt. The earlier development-run details below remain as historical evidence.
 
 ## Implementation and environment
 
-The fixture engine remains intact. A separate Debian backend follows the same seven transaction phases, using a fixed Polkit helper, root-owned state, package-manager locks, independently checked package pins and plans, and ownership/path checks. Only `GRUB_THEME` changes in defaults. Debian generates a separate candidate, checks it, then activates it by synced replacement. Immediate recovery restores verified snapshots; later rollback regenerates with current kernels. Failed operations retain assets and recovery material.
+The Debian backend followed the same seven transaction phases, using a fixed Polkit helper, root-owned state, package-manager locks, independently checked package pins and plans, and ownership/path checks. Only `GRUB_THEME` changes in defaults. Debian generates a separate candidate, checks it, then activates it by synced replacement. Immediate recovery restores verified snapshots; later rollback regenerates with current kernels. Failed operations retain assets and recovery material.
 
 | Component | Tested configuration |
 | --- | --- |
@@ -22,13 +22,13 @@ The fixture engine remains intact. A separate Debian backend follows the same se
 | Authorization | pkexec/polkitd 126-2; test-only rule for the guest user and fixed action |
 | Builds | Go 1.27.1; Windows amd64 and Linux amd64 |
 
-The Debian image SHA-512 is pinned in `scripts/vm/run.py` and was checked against Debian's published checksums. All GRUB generation and boot changes occurred inside the disposable guest. Windows and WSL boot configuration were not modified. Host tools were extracted into ignored `work/` directories.
+The Debian image SHA-512 is pinned in `scripts/vm/run.py` and was checked against Debian's published checksums. All GRUB generation and boot changes occurred inside the disposable guest. Host tools were extracted into `work/`.
 
 ## Commands and ordinary tests
 
 The unchanged baseline passed 83 named Windows cases and 86 Linux cases. The final ordinary suite passed 91 Windows cases, with three filesystem-capability skips, and 94 Linux cases including race detection. Counts include named subtests. Windows skipped case-collision and two symlink checks; Linux exercised them.
 
-Executed with the workspace toolchains:
+Executed with Go 1.27.1:
 
 ```sh
 go test -json ./...
@@ -41,7 +41,7 @@ gofmt -l cmd internal tools
 python3 -m py_compile scripts/vm/run.py scripts/vm/guest-flow.py
 ```
 
-Formatting, vet, module verification, license checks, builds and Python compilation passed. Normal Actions retains unit/fixture tests and builds all three commands; it does not run real boot tests. This report records local checks, not a remote Actions result.
+Formatting, vet, module verification, license checks, builds and Python compilation passed. Normal Actions retains unit/fixture tests and builds all three commands; it does not run real boot tests. These results are local checks.
 
 The separate harness ran as an ordinary WSL user:
 
@@ -76,7 +76,7 @@ grubmgr plan switch debian/starfield
 grubmgr apply <plan>
 ```
 
-Inside the guest, the helper ran `/usr/sbin/grub-mkconfig -o /boot/grub/.grubmgr-TRANSACTION.cfg` and `/usr/bin/grub-script-check CANDIDATE`. No `grub-install` was run. Apt and test setup were separate provisioning operations, not helper features.
+Inside the guest, the helper ran `/usr/sbin/grub-mkconfig -o /boot/grub/.grubmgr-TRANSACTION.cfg` and `/usr/bin/grub-script-check CANDIDATE`. Apt and guest provisioning ran separately from the helper.
 
 ## Reboots and rollback
 
@@ -93,7 +93,7 @@ The kernel update added `6.12.111+deb13-amd64` alongside `6.12.111+deb13-cloud-a
 
 Rollback generated configuration SHA-256 `fe59699b21627f4d22896bfb653940b2c586385270d93daaa9fe9b98a1cf1cc7`, distinct from the initial `d7ba72e9d57ace53d6ed9c7be638a32e02d0c7b0512f185107d91d06adabd5c4`. It remained unchanged across reboot. Starfield's hash `a51948c997000dee8e54e5e69d1bc59fdd6c6b9af9d874977fde4ac95d03668d` also matched before and after reboot.
 
-This run began with a fresh overlay. During development its initial SSH bootstrap was repaired, and binaries were refreshed before the rollback/failure and Starfield stages. The committed harness contains that fix. This is completed development-run evidence, not a claim that one frozen archive completed every stage without intervention.
+This run began with a fresh overlay. During development its initial SSH bootstrap was repaired, and binaries were refreshed before the rollback/failure and Starfield stages. The committed harness contains that fix. The run therefore covers multiple development builds. The later package verification used one frozen archive throughout.
 
 ## Failure checks
 
@@ -101,28 +101,28 @@ The guest test binary passed 26 named cases, including subtests:
 
 - Strict requests, content pins, settings preservation and token parsing.
 - Failures after all seven phases; journal interruption/recovery at all six pre-commit phases.
-- Actual SIGKILL after settings staging and activation; an actual Debian generator error.
+- SIGKILL after settings staging and activation; a Debian generator error.
 - Stale plans and manual defaults edits. Conflicting recovery retained `recovery_required` until the conflict was resolved.
 - A failed later rollback restored its immediate predecessor byte-for-byte; a fresh rollback then succeeded.
 - Unsafe destination-parent and individual asset permissions were refused.
 - ENOSPC during replacement on a private 1 MiB guest tmpfs preserved the original file.
 
-The disk-full test covers atomic replacement, not exhaustion of the entire boot/state filesystem. Phase hooks are not power-loss certification. Failure injection exists only in the VM test build.
+The disk-full test covers replacement on a bounded tmpfs. Whole-filesystem exhaustion and arbitrary power loss were outside the run. Failure injection was compiled into the VM test executable.
 
 ## Real theme and preview
 
 Starfield passed import, validation, preview, installation, activation and reboot. Its normalized tree including notices is pinned to `b85ca5d4edb4af357c3ffa67bdf4dc74e43c436d94354ea2c714c63970cc4739`; package revision is `fa3fb6f82730aa0c96483ab9170def95ecd20103e4b4ef3509dd4f56cae551fc`. All 33 files, including five PF2 fonts and notices, were retained.
 
-The final 1024×768 PNG was visually inspected: Starfield's background and generated Debian/Recovery menu rendered in GRUB under QEMU. This is a real GRUB preview of a generated menu. Separate reboot evidence establishes that the configured VM booted; neither proves physical-machine rendering.
+The final 1024×768 PNG was visually inspected: Starfield's background and generated Debian/Recovery menu rendered in GRUB under QEMU. The image records guest rendering; the reboot results above record VM boot behavior.
 
-An early capture was blank. The adapter now waits for both a serial readiness marker and the menu entry, allows the first paint to finish and rejects a blank frame. Preview has a six-minute overall limit, five-minute QEMU limit, and memory/file/descriptor bounds. Its namespace exposes no host boot disk, home directory or network. The external GPL renderer and theme assets are not bundled.
+The adapter waits for both a serial readiness marker and the menu entry, allows the first paint to finish and rejects a blank frame. Preview has a six-minute overall limit, five-minute QEMU limit, and memory/file/descriptor bounds. Its namespace exposes no host boot disk, home directory or network. The external GPL renderer and theme assets are not bundled.
 
-Grub of Tsushima stays browse-only: the user could not establish permissions for its Sony artwork and third-party fonts. The canonical repository is recorded, but no approved recipe, assets or installer were imported.
+Grub of Tsushima was retained as a discovery link pending artwork and font permissions.
 
 ## Evidence and remaining limits
 
-Local evidence is in `outputs/phase2-evidence/clean-vm`: command records, state snapshots, package versions, kernel-install log, failure log, preview PNG, console log and `PASS`. Ordinary logs are `work/phase2-windows.jsonl` and `work/phase2-linux-race.jsonl`. Ignored outputs, VM images and credentials are not uploaded as source. The harness deletes its runtime SSH key on exit.
+Local evidence is in `outputs/phase2-evidence/clean-vm`: command records, state snapshots, package versions, kernel-install log, failure log, preview PNG, console log and `PASS`. Ordinary logs are `work/phase2-windows.jsonl` and `work/phase2-linux-race.jsonl`. The harness removes its runtime SSH key on exit.
 
 The shipped Polkit policy requires administrator authorization. Tests used a scoped guest rule, so the graphical password prompt and desktop-agent behavior remain untested. The VM marker/SMBIOS check is a deployment guard, not protection against an existing root administrator.
 
-Physical machines, WSL activation, Ubuntu, Arch, Fedora, BIOS, Secure Boot enabled, separate `/boot`, non-ext4 roots, GRUB Customizer and snapshot integrations are unsupported. GUI work, online catalog refresh, general theme upgrades and garbage collection remain deferred. This candidate is suitable for further disposable-VM testing within those limits.
+This release covered only the Debian VM layout above. Physical hardware, WSL, other distros, BIOS, Secure Boot enabled, separate `/boot`, non-ext4 roots, GRUB Customizer and snapshot integrations were outside its support scope. Later Ubuntu, Kali and Arch results are recorded in [Linux verification](linux-verification.md).

@@ -10,8 +10,7 @@ import (
 	"strings"
 )
 
-// importDebian copies one pinned, installed Debian data package. It runs no
-// package manager or maintainer script and resolves all sources beneath p.Root.
+// importDebian copies the pinned installed Starfield files and notices from p.Root.
 func importDebian(p system.Paths, dst *os.Root, recipe model.Recipe) error {
 	if recipe.ID != "debian/starfield" || recipe.Source.URL != "debian:grub-theme-starfield=2.12-9+deb13u2" {
 		return fmt.Errorf("unsupported Debian data package")

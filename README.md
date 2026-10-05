@@ -1,12 +1,12 @@
 # GRUB Manager
 
-`grubmgr` installs, switches, and rolls back GRUB themes.
+`grubmgr` is a command-line manager for GRUB theme packages. It imports and validates themes, records immutable revisions, previews them in QEMU, and applies changes through an inspectable plan. Previous themes remain available for rollback.
 
-The CLI includes a fixture backend and experimental Debian, Ubuntu, Kali and Arch VM profiles. Physical-machine activation is disabled.
+**Status: experimental VM release, `0.3.0-rc.1`.** Activation supports specific Debian 13, Ubuntu 24.04, Kali and Arch test profiles. Physical-machine and WSL activation are disabled. See [Linux support](docs/linux-support.md) for exact versions and layouts.
 
 ## Build
 
-Requires Go 1.27.1.
+Requires Go 1.27.1:
 
 ```sh
 go build -o grubmgr ./cmd/grubmgr
@@ -14,13 +14,13 @@ go build -o grubmgr ./cmd/grubmgr
 ./grubmgr search
 ```
 
-On Windows, use `-o grubmgr.exe` and `./grubmgr.exe`.
+On Windows, build with `-o grubmgr.exe` and run `./grubmgr.exe`. The standalone binary supports browsing, imports, validation and fixture testing. Linux activation also requires the packaged helper and Polkit policy.
 
-A [Debian package](docs/debian-package.md) is available for disposable-VM testing. Linux CI publishes it as the `grubmgr-debian-amd64` workflow artifact.
+Linux CI produces two package artifacts: `grubmgr-debian-amd64` for Debian, Ubuntu and Kali, and `grubmgr-arch-x86_64` for Arch. Each includes the package, checksum and file manifest. See [package instructions](docs/debian-package.md) and [Arch packaging](docs/linux-support.md#build-and-test).
 
-The [Linux support guide](docs/linux-support.md) covers Ubuntu/Kali `.deb` testing and the Arch pacman package. Linux CI also publishes `grubmgr-arch-x86_64`.
+## Try it with a fixture
 
-## Try the fixture workflow
+Copy the synthetic Debian root into a new working directory:
 
 ```sh
 mkdir -p work
@@ -28,49 +28,45 @@ cp -R fixtures/debian work/demo-debian
 ./grubmgr --root work/demo-debian fetch cyberpunk-demo
 ./grubmgr --root work/demo-debian validate cyberpunk-demo
 ./grubmgr --root work/demo-debian plan install grubmgr/cyberpunk-demo
-./grubmgr --root work/demo-debian apply <plan-token>
-./grubmgr --root work/demo-debian plan switch grubmgr/cyberpunk-demo
-./grubmgr --root work/demo-debian apply <plan-token>
-./grubmgr --root work/demo-debian history
-./grubmgr --root work/demo-debian plan rollback <transaction-id>
-./grubmgr --root work/demo-debian apply <plan-token>
 ```
 
-Use the token printed by each plan. Use the same `--root` throughout. `install` copies assets; `switch` selects an installed theme. A new plan is needed after state changes. In PowerShell, copy the fixture with `Copy-Item -Recurse fixtures/debian work/demo-debian`.
+In PowerShell, use `Copy-Item -Recurse fixtures/debian work/demo-debian` for the copy. Keep the same `--root` for each command.
+
+Review the plan, then replace `PLAN_TOKEN` below with its complete `plan_id`:
+
+```sh
+./grubmgr --root work/demo-debian apply PLAN_TOKEN
+./grubmgr --root work/demo-debian plan switch grubmgr/cyberpunk-demo
+```
+
+Apply the new switch token to select the theme. `install` copies assets; `switch` activates an installed revision. Plans expire when the relevant state changes.
+
+To restore the theme selection that preceded a transaction, find its ID in `history`, run `plan rollback TRANSACTION_ID`, then apply the returned token. Rollback preserves the current boot entries.
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
 | `doctor` | Inspect the system and report activation support |
-| `search [query]`, `info ID` | Browse themes and package details |
-| `fetch ID-or-path` | Import a catalog entry, directory, ZIP, TAR, or TAR.GZ |
-| `fetch HTTPS_URL --recipe FILE` | Download an artifact pinned by a reviewed recipe |
-| `validate PATH-or-ID` | Check theme syntax, paths, images, fonts, and metadata |
-| `list`, `status`, `history` | Show packages and transactions |
-| `plan install\|switch\|remove ID` | Inspect a change before applying it |
-| `plan rollback TRANSACTION` | Restore a previous theme selection |
+| `search [QUERY]`, `info ID` | Browse the catalog and package details |
+| `fetch SOURCE [--recipe FILE]` | Import a catalog entry, directory, archive or reviewed HTTPS artifact |
+| `validate PATH_OR_ID [--recipe FILE]` | Check theme syntax, references, images, fonts and metadata |
+| `list` | Show the user's imported packages |
+| `status`, `history` | Show managed package state and transactions |
+| `plan install\|switch\|remove ID` | Inspect a proposed change |
+| `plan rollback TRANSACTION_ID` | Select the theme used before a committed transaction |
 | `apply TOKEN`, `recover` | Apply a plan or recover an interrupted transaction |
-| `preview ID` | Render a generated menu with optional GRUB/QEMU tools |
+| `preview ID [--variant ID]` | Render a generated menu using GRUB and QEMU |
 
-Use `--variant ID` to select a variant, `--json` for structured output, and `--log-json` for logs on stderr. If several revisions are cached, select `namespace/name@FULL_REVISION`.
+Use `--variant ID` with install or switch plans, `--json` for structured output, and `--log-json` for logs on stderr. If several revisions are cached, select `namespace/name@FULL_REVISION`. On supported VMs, `doctor`, `plan`, `status`, `history`, `apply` and `recover` use the Polkit helper; `list` reads the user store.
 
-## Support
+## Themes
 
-| Environment | Activation |
-| --- | --- |
-| Marked Debian fixture | Working |
-| Debian 13.7 amd64 UEFI test VM, GRUB 2.12-9+deb13u2 | Experimental; exact layout only |
-| Ubuntu 24.04 amd64 UEFI test VM | Experimental; separate ext4 `/boot` profile |
-| Kali amd64 UEFI test VM | Experimental; pinned GRUB and ext4 layout |
-| Arch x86-64 UEFI test VM | Experimental; flat Btrfs root and `/efi` profile |
-| Physical machines, WSL | Refused |
-| Fedora | Detection only |
-| Other systems | Read-only or refused |
+The catalog ships with Cyberpunk Demo, an original test theme approved for all four VM profiles, and a Debian-only Starfield import that preserves the upstream asset and font notices. Minegrub and Grub of Tsushima are discovery links pending recipe and asset-license review.
 
-Cyberpunk Demo is an original test theme. Starfield imports a pinned Debian data package and preserves its notices. Other themes need reviewed recipes, content pins and asset licenses. Grub of Tsushima is deferred until its artwork/font permissions are known. No community installer scripts run.
+Theme packages contain data. The Linux helper accepts the recipes and content pins compiled into its build. General community-theme updates, catalog refresh, garbage collection and a graphical interface are planned work.
 
-## Tests
+## Development
 
 ```sh
 go test ./...
@@ -79,17 +75,17 @@ go mod verify
 go run ./tools/checklicenses
 ```
 
-See [testing](docs/testing.md), [Linux VM verification](docs/linux-verification.md), the earlier [Debian verification](docs/phase2-verification.md), and the [VM harness](docs/vm-testing.md). Normal CI uses temporary fixtures. Real boot tests run separately in disposable VMs.
+CI runs Windows and Linux tests, Linux race detection, and package checks. Boot tests use a separate [disposable VM harness](docs/vm-testing.md). The [verification report](docs/linux-verification.md) records the tested archives, reboots and recovery cases.
 
 ## Documentation
 
+- [Linux support and preview setup](docs/linux-support.md)
 - [Architecture](docs/architecture.md)
-- [Debian support and recovery](docs/debian-backend.md)
-- [Linux profiles, packages and VM tests](docs/linux-support.md)
-- [Package format](docs/package-format.md)
+- [Package and recipe format](docs/package-format.md)
 - [Security model](docs/security-model.md)
-- [Ecosystem audit](docs/ecosystem-audit.md)
-- [Reuse plan](docs/reuse-plan.md)
+- [Testing](docs/testing.md)
+- [Ecosystem audit](docs/ecosystem-audit.md) and [reuse decisions](docs/reuse-plan.md)
+- [Release notes](docs/releases/v0.3.0-rc.1.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
 
-MIT license. Dependency and theme licenses remain separate.
+Original code and demo assets are [MIT licensed](LICENSE). Dependencies and imported themes retain their own licenses.

@@ -20,7 +20,7 @@ URL = 'https://cloud.debian.org/images/cloud/trixie/latest/' + IMAGE
 
 
 def bootstrap_host_key(pid, port, known):
-    """Trust the first key only after proving this QEMU owns the loopback listener."""
+    """Record the guest's first SSH key after checking QEMU listener ownership."""
     address = '0100007F:%04X' % port
     inodes = {row.split()[9] for row in pathlib.Path('/proc/net/tcp').read_text().splitlines()[1:]
               if row.split()[1] == address and row.split()[3] == '0A'}
@@ -48,7 +48,7 @@ def main():
     parser.add_argument('--deb', type=pathlib.Path, help='Use this frozen .deb and its adjacent .manifest.json')
     args = parser.parse_args()
     if os.name != 'posix' or os.geteuid() == 0:
-        raise SystemExit('Run as an ordinary Linux user. Guest setup uses sudo only inside QEMU.')
+        raise SystemExit('Run as an ordinary Linux user.')
     tools = args.tools_root.resolve()
     env = os.environ.copy()
     if tools != pathlib.Path('/'):
@@ -71,7 +71,7 @@ def main():
         partial.rename(image)
     with image.open('rb') as stream:
         if hashlib.file_digest(stream, 'sha512').hexdigest() != SHA512:
-            raise SystemExit('Debian image digest changed. Review a new image pin; do not bypass this check.')
+            raise SystemExit('Debian image digest differs from the pin. Use the matching image or review a pin update.')
     runs = ROOT/'work/vm-runs'
     runs.mkdir(exist_ok=True)
     run = pathlib.Path(tempfile.mkdtemp(prefix='debian13-', dir=runs))
@@ -205,7 +205,7 @@ packages: [pkexec, polkitd, desktop-base, fonts-unifont, grub-efi-amd64-bin, gru
             for name, digest in json.loads((run/'inputs.json').read_text()).items():
                 if hashlib.sha256((run/name).read_bytes()).hexdigest() != digest:
                     raise RuntimeError('Frozen input changed during run: '+name)
-            (run/'PASS').write_text('All requested VM stages passed. See evidence and console.log.\n')
+            (run/'PASS').write_text('All VM stages passed. See evidence and console.log.\n')
         finally:
             if known.exists():
                 subprocess.run(['scp',*opts,'-P',str(port),'-r','tester@127.0.0.1:/home/tester/grubmgr-test/evidence',str(run)],check=False)

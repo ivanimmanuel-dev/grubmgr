@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run only in a disposable test VM. Never run on a workstation."""
+"""Exercise theme activation and rollback inside the harness guest."""
 import hashlib,json,pathlib,subprocess,sys,time
 
 assert pathlib.Path('/sys/class/dmi/id/product_name').read_text().strip() == 'grubmgr-disposable-v1'

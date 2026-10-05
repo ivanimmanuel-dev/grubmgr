@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inspect a pacman archive without installing it or running hooks."""
+"""Verify pacman archive contents against the build manifest."""
 import hashlib
 import json
 import pathlib

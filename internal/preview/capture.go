@@ -104,7 +104,7 @@ func Capture(source, cache string, m model.Manifest, variantID string) (Result, 
 	if err = ppmToPNG(filepath.Join(dir, "preview.ppm"), filepath.Join(dir, "preview.png")); err != nil {
 		return result, err
 	}
-	return Result{Kind: "grub-qemu", Image: filepath.Join(dir, "preview.png"), Description: "GRUB rendered a generated menu in an isolated VM; this does not verify a physical boot"}, nil
+	return Result{Kind: "grub-qemu", Image: filepath.Join(dir, "preview.png"), Description: "GRUB menu rendered in an isolated QEMU VM"}, nil
 }
 
 type limitedLog struct{ bytes.Buffer }
@@ -158,8 +158,7 @@ func QEMU(args []string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 	defer cancel()
-	// OVMF needs a matching variable store. This private copy is discarded with
-	// the namespace and never reads or writes the host firmware variable store.
+	// OVMF requires a matching variable template copied into the private namespace.
 	vars, err := os.ReadFile("/firmware/vars.fd")
 	if err != nil {
 		return err
@@ -269,7 +268,7 @@ func ppmToPNG(source, dest string) error {
 			}
 		}
 		if !visible {
-			return fmt.Errorf("QEMU returned a blank frame; preview is not verified")
+			return fmt.Errorf("QEMU returned a blank frame; see preview.log and grub-serial.log")
 		}
 	}
 	img := image.NewRGBA(image.Rect(0, 0, w, h))

@@ -22,8 +22,7 @@ assert 'Active=yes' in session and 'Remote=no' in session and 'Seat=seat0' in se
 
 
 def fingerprint():
-    # The disposable tester already has sudo for harness setup/readback. Only
-    # this read-only measurement uses it; the CLI below still uses real Polkit.
+    # Sudo reads the protected configuration; the CLI uses the shipped Polkit policy.
     data = subprocess.check_output(['sudo', '-n', 'sha256sum', '/etc/default/grub', '/boot/grub/grub.cfg'], text=True)
     return [line.split()[0] for line in data.splitlines()]
 

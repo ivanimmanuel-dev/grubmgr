@@ -28,7 +28,7 @@ func Available() bool {
 	return err == nil && strings.TrimSpace(string(dmi)) == "grubmgr-disposable-v1"
 }
 
-// Call invokes only the installed helper; neither path is configurable by a theme.
+// Call sends a typed request to the installed helper through Polkit.
 func Call(req Request, result any) error {
 	if runtime.GOOS != "linux" || os.Geteuid() == 0 {
 		return output.Fail(output.Unsupported, "UNPRIVILEGED_REQUIRED", "run the CLI as an ordinary Linux user")

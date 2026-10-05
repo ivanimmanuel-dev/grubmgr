@@ -1,4 +1,4 @@
-// Package pf2 independently implements a bounded PFF2 section inspector.
+// Package pf2 inspects PFF2 section structure and embedded font names.
 package pf2
 
 import (

@@ -19,7 +19,7 @@ import (
 var prop = regexp.MustCompile(`^\s*([A-Za-z_][A-Za-z0-9_-]*)\s*[:=]\s*(?:"([^"\r\n]*)"|([^#\s}]+))\s*(?:#.*)?$`)
 
 func Run(dir string, m model.Manifest) model.Validation {
-	v := model.Validation{Valid: true, Validator: "grubmgr/0.1.0", Findings: []model.Finding{}}
+	v := model.Validation{Valid: true, Validator: "grubmgr/theme-validator-v1", Findings: []model.Finding{}}
 	add := func(sev, code, file string, line int, msg string) {
 		v.Findings = append(v.Findings, model.Finding{Severity: sev, Code: code, File: file, Line: line, Message: msg})
 		if sev == "ERROR" {
@@ -102,7 +102,7 @@ func Run(dir string, m model.Manifest) model.Validation {
 			add("ERROR", "EXECUTABLE_DATA", f.Path, 0, "Executable/script payloads are not accepted as theme data")
 		case ".txt", ".md", ".json", "":
 		default:
-			add("WARN", "UNSUPPORTED_FILE", f.Path, 0, "File type is not decoded or supported by the initial validator")
+			add("WARN", "UNSUPPORTED_FILE", f.Path, 0, "File type is not supported by the validator")
 		}
 	}
 	for _, notice := range m.License.Notices {
@@ -138,7 +138,7 @@ func Run(dir string, m model.Manifest) model.Validation {
 			}
 			if strings.HasPrefix(s, "+") {
 				if !strings.HasSuffix(s, "{") {
-					add("ERROR", "THEME_SYNTAX", entry, line, "Component must open with a brace on its own line")
+					add("ERROR", "THEME_SYNTAX", entry, line, "Expected a component declaration ending with {")
 				}
 				depth++
 				continue
@@ -188,7 +188,7 @@ func Run(dir string, m model.Manifest) model.Validation {
 			add("ERROR", "THEME_SYNTAX", entry, line, "Unbalanced component braces")
 		}
 	}
-	add("WARN", "BOOT_UNVERIFIED", "", 0, "Static validation does not establish boot readability, gfxterm support, Secure Boot font compatibility or successful rendering")
+	add("WARN", "BOOT_UNVERIFIED", "", 0, "Rendering and boot compatibility require a supported VM test")
 	if len(m.Compatibility.Backends) == 0 {
 		add("WARN", "COMPATIBILITY_UNKNOWN", "", 0, "No tested backend is declared")
 	}

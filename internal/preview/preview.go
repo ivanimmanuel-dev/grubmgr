@@ -5,7 +5,7 @@ import (
 	"grubmgr/internal/system"
 )
 
-// Adapter is the future boundary for a separately installed, constrained VM renderer.
+// Adapter reports preview availability for synthetic fixtures.
 type Adapter interface {
 	Preview(themeDirectory string) error
 }
@@ -15,5 +15,5 @@ func (e External) Preview(_ string) error {
 	if len(e.System.MissingOptional) > 0 {
 		return output.Fail(output.Unsupported, "PREVIEW_DEPENDENCIES", "optional dependencies missing: %v", e.System.MissingOptional)
 	}
-	return output.Fail(output.Unsupported, "PREVIEW_DISABLED", "dependencies detected; constrained external adapter has not passed disposable-VM review")
+	return output.Fail(output.Unsupported, "PREVIEW_DISABLED", "preview is unavailable in fixture mode; use the installed Linux CLI without --root")
 }

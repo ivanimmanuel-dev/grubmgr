@@ -1,37 +1,39 @@
 # Security model
 
-Themes are data. The CLI does not run community installers, source theme files as shell, or elevate itself. Real activation requires an explicitly supported disposable VM profile. Detection on another system does not enable writes.
+GRUB Manager treats themes as data. Import and preview run under the user's account. Activation uses a fixed Polkit helper and is restricted to the [supported disposable VM profiles](linux-support.md).
 
-## User inputs
+## Package inputs
 
-Archives and local imports reject links, special files, traversal, case collisions and oversized members. Image/font decoding and theme parsing have bounds. HTTPS imports need an exact URL and SHA-256 recipe. A digest proves content identity, not authorship or permission. Unknown-license entries remain unavailable for activation.
+Archives and local imports reject links, special files, traversal, case collisions and oversized members. Theme parsing and image/font decoding enforce resource limits. HTTPS imports require an exact recipe URL and SHA-256 digest. The digest identifies content; author and license evidence are separate recipe fields.
 
-`--root` inspects only its marked synthetic fixture and never falls back to host `/boot`, `/etc` or firmware. It must not point to a real mounted installation. Fixture stores are not protected from another process running as their owner.
+The fixture engine uses a marked synthetic root supplied through `--root`. Inspection and destination paths resolve beneath that root. Fixture stores are owned by the caller and can be changed by other processes under the same account. A real mounted installation is not a fixture.
 
-## Privileged boundary
+## Privileged operations
 
-The CLI invokes only `/usr/bin/pkexec /usr/libexec/grubmgr-helper`. The installed helper accepts a bounded JSON request with fixed operations: inspect, status, history, plan, apply and recover. There are no executable, shell, destination, root-override or failure-injection fields. `PKEXEC_UID` must identify an ordinary user; authorization is enforced by the installed Polkit action and protected executable.
+The CLI calls `/usr/bin/pkexec /usr/libexec/grubmgr-helper`. The helper accepts bounded JSON for six operations: `inspect`, `status`, `history`, `plan`, `apply` and `recover`. It derives executable and destination paths from the selected profile. The protocol has no shell, root override or failure-injection fields.
 
-The helper independently checks package identity, every byte, the compiled recipe/content pin, revision, destinations, root ownership, links and current configuration fingerprints. Caller-supplied reviewed/license flags cannot approve a package. It writes its own protected cache, receipts and recovery snapshots. The ordinary-user database is not authoritative.
+The installed Polkit action requires administrator authentication from an active local session. `PKEXEC_UID` identifies the ordinary user. Terminal callers register `pkttyagent` with their PID and kernel start time, wait for registration, and stop the agent after the request. Passwords pass directly through the terminal.
 
-The production Polkit policy requires administrator authentication for an active session. The VM harness installs a separate tester-only authorization rule **inside the disposable guest**. Do not install that rule on a workstation.
+The helper verifies the compiled recipe and content pin, manifest revision, file hashes, destination ownership, link policy and current configuration fingerprints. It keeps an independent root-owned cache and journal; the user database and caller-supplied review flags cannot approve a package.
 
-Terminal callers register the installed `pkttyagent` as their ordinary user and wait for registration before invoking `pkexec`. The subject includes the caller's PID and kernel start time. The agent uses the controlling terminal; passwords never enter grubmgr's request, output or logs. The agent stops when the request ends. No authentication rule is changed by the application.
+Only the profile's generator and checker run, using fixed paths, a cleared environment, bounded output and a timeout. Installed root-owned GRUB scripts are trusted administrative configuration. Dpkg or pacman locks coordinate package updates. Activation changes `GRUB_THEME`; bootloader installation, kernel options, default OS, timeout and firmware policy remain outside the helper interface.
 
-Only fixed profile-selected generator/checker paths run, with a cleared environment, bounded output and timeout. Root-owned distro configuration scripts execute as part of the installed generator; these are trusted administrative inputs, not theme package code. Dpkg or pacman locks coordinate package updates. Only `GRUB_THEME` changes; the helper does not reinstall GRUB, alter kernel arguments/default OS/timeout, or write partitions, EFI variables or Secure Boot policy.
+Immediate recovery checks original and expected hashes before restoring snapshots, then verifies the restored bytes. Conflicts retain the journal with `recovery_required`. Later rollback regenerates configuration with the current boot inventory. Journals contain configuration text and should be kept private.
 
-Immediate recovery checks original/expected hashes and verifies restored bytes. Conflicts retain the root journal and report `recovery_required`. Later rollback regenerates with the current boot inventory. Journals may contain configuration text and are not public artifacts.
+## Preview isolation
 
-## Preview
+Preview uses Bubblewrap with private mount, PID and network namespaces. It exposes read-only `/usr`, the selected theme and an output directory. The renderer receives a generated menu; the QEMU adapter restricts drives, memory and execution time. Host boot disks, the home directory and network access are excluded. Missing tools or unavailable namespaces stop preview.
 
-Preview runs as an ordinary Linux user through Bubblewrap. It has no real `/boot`, host home, host disks or network. The renderer gets a generated menu; a fixed adapter constrains QEMU drives, memory and time. Missing tools or unavailable namespaces produce a diagnostic rather than falling back to an unsandboxed launch. Read-only `/usr` exposes installed system programs and public assets. A QEMU image cannot certify a physical boot or make malicious renderer/firmware bugs impossible.
+Ubuntu's optional AppArmor profile permits user namespaces for `/usr/bin/grubmgr` and its children. It is an application permission profile, with Bubblewrap providing isolation. An administrator loads it during preview setup; package installation leaves system policy unchanged.
 
-Ubuntu's optional packaged AppArmor profile allows user namespaces for the installed `/usr/bin/grubmgr` and its children. It follows Ubuntu's application permission mechanism and does not replace Bubblewrap isolation or provide full AppArmor confinement. Loading it is an explicit administrator dependency-setup step; package installation does not reload policy or change system-wide namespace restrictions.
+## Deployment and test limits
 
-## Limits
+Activation requires exact distro, package-version and layout checks, a root-owned VM marker, and matching QEMU SMBIOS identity. The marker prevents accidental use outside the test environment; an existing root administrator controls that environment and can bypass advisory locks.
 
-The supported backend requires a root-owned VM marker and matching QEMU SMBIOS value as well as exact distro/version/layout checks. Those are accidental-use guards, not a defense against an administrator deliberately bypassing them. BIOS, Secure Boot enabled, immutable systems, customizer/snapshot integrations and untested GRUB versions or layouts are refused. Ubuntu's separate ext4 `/boot` and Arch's flat Btrfs root have distinct profiles; other layouts are not inferred from them. See [Linux targets](linux-support.md).
+The VM suite exercises selected process interruptions and recovery boundaries. Physical hardware, arbitrary power loss, BIOS, Secure Boot enabled, snapshot integrations, GRUB Customizer and other untested layouts are unsupported. See [verification](linux-verification.md) for the executed cases. Expanding to physical systems requires a privileged-helper review and further boot testing.
 
-SIGKILL recovery is tested at selected journal boundaries; arbitrary power loss at every syscall is not certified. Another root process can bypass advisory locks. No automatic repair after an unbootable physical system is promised. A privileged-helper review remains a gate before expanding beyond test VMs.
+The VM harness uses a separate tester-only authorization rule after testing the shipped password policy. That rule belongs exclusively to the disposable guest.
 
-MIT covers original code and synthetic assets. Imported theme artwork/fonts retain their own licenses and notices. The GPL preview renderer remains a separately installed program. Grub of Tsushima lacks confirmed permissions for its third-party artwork/fonts and has no approved activation recipe.
+## Licenses
+
+Original code and demo assets use MIT. Imported artwork and fonts retain their notices. The GPL preview renderer is installed separately. The [third-party notices](../THIRD_PARTY_NOTICES.md) record dependencies and theme provenance.

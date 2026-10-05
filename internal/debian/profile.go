@@ -8,8 +8,7 @@ import (
 	"strings"
 )
 
-// Profiles describe reviewed targets, not a best-effort ID_LIKE fallback.
-// The package name is retained to avoid moving the existing transaction service.
+// A profile fixes the distro identity, GRUB version, tools and boot layout.
 type profile struct {
 	ID, Version, Backend, PackageManager, GRUBVersion string
 	Generator, Probe, Library                         string

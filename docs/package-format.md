@@ -1,49 +1,82 @@
-# Package and recipe format, schema 1
+# Package and recipe format
 
-Recipes are JSON data decoded with unknown fields rejected. No command, hook, plugin or executable field exists. Start with the reviewed synthetic recipe in `internal/catalog/catalog.json` when authoring a local fixture recipe; `examples/synthetic-recipe.json` is a standalone copy. Never set `reviewed` merely to bypass missing asset rights.
+Schema 1 describes theme data, provenance and compatibility. JSON decoding rejects unknown fields. Use [synthetic-recipe.json](../examples/synthetic-recipe.json) as a local fixture example; the [embedded catalog](../internal/catalog/catalog.json) contains the recipes approved by the Linux helper.
 
 ## Recipe fields
 
 | Field | Meaning |
 | --- | --- |
-| `schema_version` | Exactly 1 |
-| `id` | Stable lowercase `namespace/name`; letters, digits, dots and hyphens |
-| `name`, `author`, `project_url`, `version` | Human identity; an unknown project URL may be empty for synthetic/local data |
-| `source.provider`, `source.url`, `source.upstream_revision` | Origin, canonical fetch location, immutable upstream reference if supplied |
-| `artifact_sha256` | Required reviewed digest for remote artifacts; optional expected digest for local imports |
-| `theme_root`, `entry` | Explicit relative root and entry, normally `theme.txt`; root may be `.` |
-| `variants` | Additional `{id, root, entry, resolutions}` entries; `default` is reserved for the primary root/entry |
+| `schema_version` | Exactly `1` |
+| `id` | Lowercase `namespace/name`, using letters, digits, dots and hyphens |
+| `name`, `author`, `project_url`, `version` | Display identity; synthetic or local packages may have an empty project URL |
+| `source.provider`, `source.url`, `source.upstream_revision` | Provider, canonical source and upstream revision |
+| `artifact_sha256` | Reviewed digest required for remote artifacts; optional expected digest for local imports |
+| `theme_root`, `entry` | Relative root and entry file; root may be `.` |
+| `variants` | Additional `{id, root, entry, resolutions}` records; `default` selects the primary root and entry |
 | `license` | `{spdx, notices, verified, evidence}`; notice paths are relative to the package |
 | `compatibility` | `{backends, architectures, firmware, requires, notes}` |
-| `preview` | `{kind, source, attribution}` descriptive metadata; never QEMU arguments |
-| `recipe_revision` | Packaging recipe identity, distinct from human theme version |
-| `reviewed` | Operator/curator assertion; not a cryptographic attestation |
+| `preview` | `{kind, source, attribution}` describing preview media |
+| `recipe_revision` | Packaging revision, separate from the upstream theme version |
+| `reviewed` | Curator assertion that the recipe has been reviewed |
 
-The only installable compatibility value today is `fixture-debian`. Optional architecture/firmware lists must match fixture evidence. Required capabilities such as `gfxterm` are descriptive; static validation cannot prove them and emits a boot-unverified warning. No real compatibility combination is certified.
+`compatibility.backends` names an explicit target:
 
-Import adds `revision`, `tree_sha256`, and sorted `files` entries `{path,size,sha256}`. `artifact_sha256` is the digest of original archive/download bytes. For local directories and builtin data there is no archive, so it equals the canonical tree digest. `tree_sha256` hashes the compact JSON array of sorted file records. `revision` hashes the compact Go JSON encoding of the complete manifest with its `revision` field empty. Thus source, recipe, license, variants and file content affect identity. These schema-1 encodings are versioned implementation rules, not a general canonical-JSON standard.
+| Backend | Target |
+| --- | --- |
+| `fixture-debian` | Synthetic Debian root |
+| `debian13-uefi-vm` | Debian 13 VM |
+| `ubuntu2404-uefi-vm` | Ubuntu 24.04 VM |
+| `kali-rolling-uefi-vm` | Kali VM |
+| `arch-uefi-vm` | Arch VM |
 
-The file inventory includes license notices. Empty directories and timestamps are not identity-bearing; executable bits are not preserved. Source files are normalized to ordinary data copies. The initial portable filename policy accepts ASCII paths, rejects Windows device names and trailing spaces/dots, and rejects case aliases on every target.
+The [Linux profiles](linux-support.md) define the exact GRUB versions and layouts. The fixture planner also checks any declared architecture and firmware values. The Linux helper checks its compiled recipe and profile independently; adding a backend name or setting `reviewed` in a local recipe does not authorize activation. Required capabilities such as `gfxterm` are descriptive metadata checked during integration testing.
+
+## Package identity
+
+Import adds `revision`, `tree_sha256` and a sorted `files` inventory of `{path, size, sha256}` records, including license notices.
+
+- `artifact_sha256` hashes the original archive bytes. For directory, built-in and installed-package imports, it equals the normalized tree digest.
+- `tree_sha256` hashes the compact Go JSON encoding of the sorted inventory.
+- `revision` hashes the compact Go JSON encoding of the complete manifest with its `revision` field empty.
+
+Recipe metadata, notices, variants and file content therefore affect revision identity. These encodings belong to schema 1. Empty directories, timestamps and executable bits are excluded; imported files become ordinary data copies.
+
+Paths use portable ASCII names. Absolute paths, traversal, Windows device names, trailing spaces or dots, and case aliases are rejected on every platform.
 
 ## Imports
 
 ```sh
 grubmgr fetch ./my-theme
 grubmgr fetch ./theme.zip --recipe ./recipe.json
-grubmgr fetch https://example.org/releases/theme-1.zip --recipe ./recipe.json
+grubmgr fetch HTTPS_ARCHIVE_URL --recipe ./recipe.json
 grubmgr validate ./my-theme --recipe ./recipe.json
 ```
 
-The example URL is illustrative: supply an actual reviewed URL and its digest. HTTPS is required; plaintext HTTP and redirects to plaintext are refused. The recipe URL must exactly match the requested URL. Redirects are bounded. Only ZIP/TAR/TAR.GZ/TGZ artifact names are accepted; endpoints with non-archive names currently require downloading the file explicitly first. Mutable Git refs are not fetched. Local paths outside `--root` may be supplied explicitly as input data; OS inspection and destination state still remain rooted.
+Replace `HTTPS_ARCHIVE_URL` with the exact URL recorded in the recipe. Remote imports require HTTPS and a reviewed SHA-256 digest. Redirects are bounded and must retain HTTPS. Supported archive suffixes are `.zip`, `.tar`, `.tar.gz` and `.tgz`; download other endpoint names to a local file with the appropriate suffix before importing. Git refs are not fetched.
 
-Without a recipe, exactly one `theme.txt` must exist. Zero or multiple candidates yield `AMBIGUOUS_THEME_ROOT`; the importer never chooses the first. Inferred local packages have unknown license/provenance and remain unavailable for activation planning. With a recipe, all declared variants are checked and unknown sibling `theme.txt` files are simply ordinary inventory files, not selected entries.
+Without a recipe, the importer requires exactly one `theme.txt`. Zero or multiple matches return `AMBIGUOUS_THEME_ROOT`. An inferred local recipe has unknown provenance and is unavailable for activation planning. An explicit recipe selects its entry and variants; other `theme.txt` files are inventoried but not selected.
 
-Limits: 128 MiB artifact/download, 128 MiB total expanded files, 16 MiB per file, 4,096 members, at most 32 path separators, 240-character paths, 1 MiB theme entry, and 16 megapixels per decoded image. ZIP and TAR share the same member policy: no absolute/traversal/noncanonical paths, duplicate or case-ambiguous members, symlinks, hardlinks, devices/FIFOs or unsupported extended TAR metadata. Limits are checked before and during expansion.
+Explicit local input paths may be outside a fixture's `--root`. System inspection and destination writes remain inside the fixture.
 
-## Validation coverage
+| Resource | Limit |
+| --- | --- |
+| Archive or download | 128 MiB |
+| Expanded file contents | 128 MiB total; 16 MiB per file |
+| Members | 4,096 |
+| Path | 240 characters; at most 32 separators |
+| Theme entry | 1 MiB |
+| Decoded image | 16 megapixels |
 
-The theme grammar subset accepts line-based `key: value`, `key = value`, `+ component {` and closing `}`. It rejects malformed/unsupported multiline or inline-component forms with `THEME_SYNTAX` instead of claiming complete GRUB parsing. Quoted values and property comments are supported. Asset paths are resolved relative to the entry directory, including nested assets and pixmap patterns. Wildcard patterns must match at least one file; full nine-slice completeness/rendering is not certified. Fonts are matched by embedded PF2 name (plus GRUB's customary Unifont name), not by their filename alone.
+ZIP and TAR use the same extraction policy. It rejects duplicate or conflicting paths, symlinks, hardlinks, devices, FIFOs and unsupported extended TAR metadata. Limits apply before and during expansion.
 
-PNG (including palette/RGB/RGBA) and JPEG files are decoded with resource limits. Other image formats are reported unsupported. The PF2 inspector validates the section framing, signature, NAME, CHIX record sizing and DATA presence; it reports the font name. It is not a full glyph-renderer or an exhaustive PF2 verifier. Scripts/executable extensions produce errors and are never executed. A successful lint always includes `BOOT_UNVERIFIED`.
+## Validation
 
-Receipts additionally retain selected variant, validation report, installed/active flags and a pin flag reserved for future update policy. Multiple immutable revisions coexist. No automatic version choice, update channel, remote registry trust or redistribution permission is inferred from a digest.
+The parser accepts line-based `key: value`, `key = value`, `+ component {` and closing `}` forms, including quoted values and property comments. Unsupported inline components or multiline properties return `THEME_SYNTAX`.
+
+Asset references resolve relative to the entry directory. Nested paths and pixmap patterns are supported; each wildcard must match at least one file. Validation checks pattern matches but leaves nine-slice completeness to rendering. Fonts resolve by embedded PF2 name, including GRUB's customary `Unifont Regular 16`.
+
+PNG and JPEG files are decoded within resource limits. The PF2 inspector checks section framing, signature, `NAME`, `CHIX` record size and `DATA` presence. Glyph rendering and other image formats require preview or additional validator support. Executable signatures and script extensions are rejected.
+
+Every report includes `BOOT_UNVERIFIED`: static validation covers package structure and assets, while the VM suite checks rendering and boot integration.
+
+Receipts retain the selected variant, validation report, installed and active flags, and a pin flag reserved for future update policy. Multiple immutable revisions can coexist. Select a full revision when an ID is ambiguous.

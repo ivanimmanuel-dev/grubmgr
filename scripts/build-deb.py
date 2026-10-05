@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the private Debian amd64 package without root or bootloader commands."""
+"""Build the Linux amd64 Debian package as an ordinary user."""
 import argparse
 import hashlib
 import json
@@ -49,7 +49,7 @@ def build(go, output):
             dest.chmod(0o755)
         copy(ROOT/'packaging/io.github.ivanimmanuel.grubmgr.policy',
              'usr/share/polkit-1/actions/io.github.ivanimmanuel.grubmgr.policy')
-        # Optional administrator setup; package installation never reloads policy.
+        # Install the optional profile as data for administrator setup.
         copy(ROOT/'packaging/apparmor/usr.bin.grubmgr',
              'usr/share/grubmgr/apparmor/usr.bin.grubmgr')
         for name in ['LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md']:
@@ -77,10 +77,9 @@ Installed-Size: {size}
 Depends: pkexec, polkitd
 Suggests: grub2-common, grub-theme-starfield, bubblewrap, qemu-system-x86, ovmf, xorriso, mtools
 Homepage: https://github.com/ivanimmanuel-dev/grubmgr
-Description: GRUB theme manager with experimental Linux VM activation
- Browse, validate, preview and manage reviewed GRUB theme packages.
- Real activation requires an explicitly supported disposable test VM.
- Physical-machine activation is disabled. No community installers run.
+Description: GRUB theme package manager
+ Import, validate, preview, switch and roll back reviewed GRUB themes.
+ Activation supports specific disposable Debian, Ubuntu, Kali and Arch VMs.
 ''')
         (control/'md5sums').write_text(''.join(
             hashlib.md5(p.read_bytes(), usedforsecurity=False).hexdigest()+'  '+p.relative_to(stage).as_posix()+'\n'

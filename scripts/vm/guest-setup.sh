@@ -9,7 +9,7 @@ case "$ID:${VERSION_ID:-rolling}" in
     *) echo 'Unsupported disposable guest' >&2; exit 1 ;;
 esac
 
-# Run after installing the frozen .deb, inside the disposable VM only.
+# Run after installing the frozen package in the guest.
 test -x /usr/bin/grubmgr
 test -x /usr/libexec/grubmgr-helper
 if test "${1:-}" = prepare; then
@@ -47,7 +47,7 @@ rm -f /home/tester/.bash_profile /etc/systemd/system/getty@tty1.service.d/grubmg
 systemctl daemon-reload
 systemctl restart getty@tty1.service
 
-# Test-only authorization. This rule is never part of a normal installation.
+# Authorize the tester after completing the shipped password-policy checks.
 cat > /etc/polkit-1/rules.d/49-grubmgr-vm.rules <<'RULE'
 polkit.addRule(function(action, subject) {
     if (action.id === "io.github.ivanimmanuel.grubmgr.manage" && subject.user === "tester") {

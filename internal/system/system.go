@@ -1,4 +1,4 @@
-// Package system performs rooted, read-only inspection; it never runs GRUB programs.
+// Package system inspects system files beneath a selected root.
 package system
 
 import (
@@ -111,7 +111,7 @@ func Theme(data []byte) (string, bool) {
 	return value, ok && count <= 1
 }
 func Inspect(p Paths) (Report, error) {
-	q := Report{Architecture: "unknown", Firmware: "unknown", GRUBVersion: "unknown (utilities are not executed)", Utilities: map[string]string{}, Configs: []string{}, BootLocations: []string{}, MissingOptional: []string{}, Warnings: []string{}, Status: "unsupported", Backend: "none", Reason: "No conventional GRUB layout established", Preview: "unavailable"}
+	q := Report{Architecture: "unknown", Firmware: "unknown", GRUBVersion: "unknown", Utilities: map[string]string{}, Configs: []string{}, BootLocations: []string{}, MissingOptional: []string{}, Warnings: []string{}, Status: "unsupported", Backend: "none", Reason: "No conventional GRUB layout established", Preview: "unavailable"}
 	r, e := os.OpenRoot(p.Root)
 	if e != nil {
 		return q, e
@@ -174,7 +174,7 @@ func Inspect(p Paths) (Report, error) {
 		}
 	}
 	if len(q.MissingOptional) == 0 {
-		q.Preview = "dependencies detected; execution disabled pending sandbox adapter review"
+		q.Preview = "tools detected; preview checks isolation and firmware when launched"
 	}
 	for _, s := range []string{"boot/grub/grub.cfg", "boot/grub2/grub.cfg"} {
 		if exists(s) {
@@ -222,22 +222,22 @@ func Inspect(p Paths) (Report, error) {
 			q.Backend = "arch-conventional"
 		case "fedora":
 			q.Backend = "fedora-conventional"
-			q.Warnings = append(q.Warnings, "Protect EFI forwarding stub; preserve BLS and grubenv")
+			q.Warnings = append(q.Warnings, "Fedora activation requires a profile that preserves the EFI stub, BLS and grubenv")
 		}
 		if q.Backend == "debian-conventional" && q.Fixture && q.Editable {
 			q.Status = "fixture-only"
-			q.Reason = "Synthetic Debian backend; no GRUB utility will run"
+			q.Reason = "Synthetic Debian fixture backend"
 		}
 	}
 	if exists("etc/default/grub.d") || exists("etc/grub.d/proxifiedScripts") {
 		q.Editable = false
 		q.Status = "read-only"
-		q.Reason = "Defaults fragments or GRUB Customizer proxies need separate review"
+		q.Reason = "This inspection backend does not support defaults fragments or GRUB Customizer proxies"
 	}
 	if !q.Editable && q.Defaults != "" {
 		q.Warnings = append(q.Warnings, "Theme assignments are complex or conflicting")
 	}
-	q.Warnings = append(q.Warnings, "File evidence cannot prove the active firmware bootloader or successful boot")
+	q.Warnings = append(q.Warnings, "Inspection identifies files; active firmware boot selection is unverified")
 	if !p.Fixture {
 		if q.Status == "ambiguous" {
 			q.Status = "AMBIGUOUS"
@@ -250,7 +250,7 @@ func Inspect(p Paths) (Report, error) {
 }
 func RequireFixture(p Paths) (*os.Root, error) {
 	if !p.Fixture || filepath.Dir(p.Root) == p.Root {
-		return nil, fmt.Errorf("real activation disabled: an explicit non-volume fixture root is required")
+		return nil, fmt.Errorf("this backend requires a marked synthetic fixture directory below the volume root")
 	}
 	if e := fsx.NoLinks(p.Root); e != nil {
 		return nil, e

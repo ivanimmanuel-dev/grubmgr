@@ -59,13 +59,13 @@ func (x *extractor) member(name string, dir bool, size int64, reader io.Reader) 
 		return e
 	}
 	if int64(len(b)) != size || int64(len(b)) > x.limits.FileBytes {
-		return fmt.Errorf("archive member size mismatch/limit: %s", name)
+		return fmt.Errorf("archive member size differs from its header or exceeds the limit: %s", name)
 	}
 	x.total += int64(len(b))
 	return fsx.Write(x.root, name, b)
 }
 
-// Extract never dispatches external tools. All links, even internal links, are rejected.
+// Extract reads supported archives with member and size limits, rejecting links.
 func Extract(file, dest string, limits Limits) error {
 	r, e := os.OpenRoot(dest)
 	if e != nil {
@@ -96,7 +96,7 @@ func Extract(file, dest string, limits Limits) error {
 				return fmt.Errorf("special ZIP member %s", m.Name)
 			}
 			if m.UncompressedSize64 > uint64(limits.FileBytes) {
-				return fmt.Errorf("archive file-size limit")
+				return fmt.Errorf("archive member exceeds the file-size limit")
 			}
 			rc, e := m.Open()
 			if e != nil {

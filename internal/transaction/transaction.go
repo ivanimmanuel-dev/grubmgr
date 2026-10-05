@@ -19,7 +19,7 @@ import (
 
 var Phases = []string{"planned", "prepared", "assets_staged", "settings_staged", "candidate_validated", "activated", "committed"}
 
-// Faults is test-only dependency injection, never package/catalogue input.
+// Faults selects failure points for transaction tests.
 type Faults struct {
 	FailAfter   string
 	CrashAfter  string

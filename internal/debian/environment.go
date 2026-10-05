@@ -195,8 +195,8 @@ func inspect(root string) (Environment, error) {
 		Files   []model.File
 	}{target, string(read("etc/os-release")), evidence})
 	q.Status = "SUPPORTED WITH WARNINGS"
-	q.Reason = "experimental activation in the disposable " + target.ID + " VM"
-	q.Warnings = []string{"No physical-machine support; a successful syntax check is not boot verification"}
+	q.Reason = "experimental activation for the " + target.ID + " VM"
+	q.Warnings = []string{"Supported on the specified QEMU VM profile; physical-machine activation is disabled"}
 	return q, nil
 }
 

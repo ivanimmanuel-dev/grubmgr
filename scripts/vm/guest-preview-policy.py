@@ -20,7 +20,7 @@ else:
     subprocess.run(['install', '-o', 'root', '-g', 'root', '-m', '0644', str(source), str(destination)], check=True)
 subprocess.run(['/usr/sbin/apparmor_parser', '-r', str(destination)], check=True)
 assert restriction.read_text().strip() == '1'
-# The permission belongs to grubmgr, not arbitrary direct Bubblewrap callers.
+# Check that unrelated Bubblewrap callers remain restricted.
 probe = subprocess.run(['sudo', '-u', 'tester', '/usr/bin/bwrap', '--unshare-all', '--ro-bind', '/', '/', '/usr/bin/true'], capture_output=True, text=True)
 assert probe.returncode != 0 and 'Operation not permitted' in probe.stderr, probe
 evidence = pathlib.Path('/home/tester/grubmgr-test/evidence/preview-policy.json')

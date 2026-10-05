@@ -75,7 +75,7 @@ func Decode(id string) (Token, error) {
 	return t, nil
 }
 func Build(p system.Paths, req Request) (Plan, error) {
-	plan := Plan{Request: req, Add: []string{}, Remove: []string{}, Retained: []string{}, Privileges: "future real backend requires an independently reviewed privileged helper; fixture needs no elevation", Recovery: "Immediate failure restores journaled bytes; later rollback selects a retained theme against current configuration", Validation: "not applicable", Compatibility: "unverified", Reason: "Real activation is disabled"}
+	plan := Plan{Request: req, Add: []string{}, Remove: []string{}, Retained: []string{}, Privileges: "fixture operations run as the current user", Recovery: "Immediate failure restores journaled bytes; later rollback selects a retained theme against current configuration", Validation: "not applicable", Compatibility: "unverified", Reason: "Fixture plan; a marked synthetic root is required"}
 	if req.Variant == "" {
 		req.Variant = "default"
 		plan.Request = req
@@ -154,7 +154,7 @@ func Build(p system.Paths, req Request) (Plan, error) {
 		if !have {
 			oldTheme, _ := system.Theme(tx.Before.Defaults)
 			if oldTheme != "" {
-				return plan, output.Fail(output.Unsupported, "UNMANAGED_ROLLBACK", "prior theme is unmanaged; cannot prove retained assets")
+				return plan, output.Fail(output.Unsupported, "UNMANAGED_ROLLBACK", "prior theme is unmanaged; rollback requires a retained managed revision")
 			}
 		}
 	} else {
@@ -229,7 +229,7 @@ func Build(p system.Paths, req Request) (Plan, error) {
 			if selected.Active {
 				plan.AfterTheme = ""
 			}
-			plan.Retained = append(plan.Retained, plan.Destination+" (retained for rollback; no garbage collection in 0.1)")
+			plan.Retained = append(plan.Retained, plan.Destination+" (retained for rollback)")
 		}
 		if req.Action == "install" || req.Action == "rollback" {
 			if !selected.Installed {
@@ -261,7 +261,7 @@ func Build(p system.Paths, req Request) (Plan, error) {
 	}
 	plan.Applicable = sys.Status == "fixture-only" && (plan.Compatibility == "synthetic Debian fixture only" || req.Action == "remove" || !have)
 	if plan.Applicable {
-		plan.Reason = "Fixture-only application; generator shown for future design is never executed"
+		plan.Reason = "Applies to the synthetic fixture; the listed GRUB command is informational"
 	} else {
 		plan.Reason = sys.Reason + "; " + plan.Compatibility
 	}

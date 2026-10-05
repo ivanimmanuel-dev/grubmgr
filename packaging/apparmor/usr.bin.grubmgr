@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Ubuntu 24.04 requires an application profile for unprivileged namespaces.
 # Bubblewrap still supplies the preview's mount, PID and network isolation.
-# This profile is an application-specific userns allowance, not a full MAC policy.
+# This unconfined profile grants userns permission to the application.
 abi <abi/4.0>,
 include <tunables/global>
 

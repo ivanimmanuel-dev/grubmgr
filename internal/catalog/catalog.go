@@ -44,7 +44,7 @@ func Find(id string) (Entry, error) {
 			return v, nil
 		}
 	}
-	return Entry{}, fmt.Errorf("catalogue ID %q not found", id)
+	return Entry{}, fmt.Errorf("catalog ID %q not found", id)
 }
 func DemoFiles() map[string][]byte {
 	out := map[string][]byte{}

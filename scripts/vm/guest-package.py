@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install/reinstall/remove our frozen package in the marked disposable VM only."""
+"""Verify package installation and lifecycle inside the harness guest."""
 import hashlib
 import json
 import os

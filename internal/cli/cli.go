@@ -31,15 +31,16 @@ Usage: grubmgr [--json] [--log-json] [--root FIXTURE] COMMAND
   search [QUERY] | info ID           Browse themes
   fetch SOURCE [--recipe FILE]       Import a theme package
   validate PATH_OR_ID [--recipe FILE]
-  list | status | history           Read receipts and transaction history
+  list                              Show imported packages
+  status | history                  Show managed state and transactions
   plan install|switch|remove ID [--variant ID]
-  plan rollback TRANSACTION         Plan a previous theme selection
+  plan rollback TRANSACTION_ID      Select the theme used before a transaction
   apply TOKEN                       Apply a fixture or supported VM plan
   recover                           Recover an interrupted transaction
-  preview ID                        Preview with optional GRUB/QEMU tools
+  preview ID [--variant ID]          Render a menu with GRUB and QEMU
 
-Physical-machine activation is disabled. Real activation requires a supported test VM.
-Install copies assets; switch selects an installed theme. Planning makes no changes.
+Activation supports marked fixtures and specific Linux test VMs.
+Install copies assets; switch activates a theme. Review each plan before applying it.
 `
 
 type options struct {
@@ -372,7 +373,7 @@ func render(w io.Writer, value any) {
 		}
 		fmt.Fprintln(w, validate.Summary(v))
 	case planner.Plan:
-		fmt.Fprintf(w, "PLAN %s\n\n%s %s@%s\nArtifact SHA256: %s\nTree SHA256: %s\nDestination: %s\nTheme: %q -> %q\nValidation: %s\nCompatibility: %s\nPrivileges: %s\nGenerator: %v\nApplicable: %t — %s\n", v.ID, v.Request.Action, v.ThemeID, v.Revision, v.ArtifactSHA256, v.TreeSHA256, v.Destination, v.BeforeTheme, v.AfterTheme, v.Validation, v.Compatibility, v.Privileges, v.Generator, v.Applicable, v.Reason)
+		fmt.Fprintf(w, "PLAN %s\n\n%s %s@%s\nArtifact SHA-256: %s\nTree SHA-256: %s\nDestination: %s\nTheme: %q -> %q\nValidation: %s\nCompatibility: %s\nPrivileges: %s\nGenerator: %v\nApplicable: %t — %s\n", v.ID, v.Request.Action, v.ThemeID, v.Revision, v.ArtifactSHA256, v.TreeSHA256, v.Destination, v.BeforeTheme, v.AfterTheme, v.Validation, v.Compatibility, v.Privileges, v.Generator, v.Applicable, v.Reason)
 		for _, s := range v.Add {
 			fmt.Fprintln(w, "+", s)
 		}
@@ -382,7 +383,7 @@ func render(w io.Writer, value any) {
 		for _, s := range v.Retained {
 			fmt.Fprintln(w, "Retain:", s)
 		}
-		fmt.Fprintf(w, "Recovery: %s\nNo changes have been made.\n", v.Recovery)
+		fmt.Fprintf(w, "Recovery: %s\n", v.Recovery)
 	default:
 		_ = output.Write(w, value)
 	}

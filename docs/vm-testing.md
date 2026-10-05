@@ -1,38 +1,48 @@
 # Disposable VM tests
 
-For Ubuntu, Kali and Arch, use the [Linux matrix harness](linux-support.md). The Debian harness below remains available for regression tests.
-
-The ordinary Go suite uses temporary fixtures. Real boot tests are separate and must run in the harness-created guest.
+Real boot tests run in harness-created QEMU guests. The ordinary Go suite uses synthetic filesystem fixtures. Ubuntu, Kali and Arch use the [Linux matrix harness](linux-support.md#build-and-test); the Debian workflow is described below.
 
 ## Run
 
-On a Linux development machine with Go 1.27.1, Python 3.11+, OpenSSH, QEMU system-x86/qemu-img, OVMF, SeaBIOS and genisoimage installed:
+Host requirements: Linux, Go 1.27.1, Python 3.11+, OpenSSH, QEMU system-x86 and qemu-img, OVMF, SeaBIOS, genisoimage, Git and dpkg-deb.
 
 ```sh
 python3 scripts/vm/run.py
 ```
 
-The harness is unprivileged on the host. `--go /path/to/go` selects a build tool; `--tools-root DIRECTORY` supports tools extracted beneath an alternate root. All guest disks, seed data and evidence are under a newly created `work/vm-runs/debian13-*` directory. The backing Debian image is read-only. No host device or shared writable host directory is attached.
+Run as an ordinary user. `--go PATH` selects the compiler, `--tools-root DIRECTORY` selects extracted QEMU tools, and `--deb PATH` selects an existing package with its adjacent `.manifest.json`. Otherwise, the harness builds a package before boot.
 
-The downloaded Debian image must match the committed SHA-512. If the upstream `latest` image changes, the harness refuses it. Review and update the pin or supply the matching cached image; never skip the check. Dependency packages in the guest come from Debian repositories, while the backend refuses an untested GRUB version.
+Each run creates a directory under `work/vm-runs/debian13-*` containing a fresh disk overlay, seed data, private firmware variables and evidence. The backing image is read-only and must match the committed SHA-512. A changed upstream image requires a reviewed pin update or the matching cached image.
 
-Each run creates a new overlay and private firmware variables. This is the clean-state/reset mechanism; previous runs remain available for investigation. SSH keys live in a temporary Linux directory. The guest host key comes from the QEMU console, or from the first SSH connection after verifying that this QEMU process owns its loopback listener. Subsequent connections enforce that key. The only forwarded port binds to loopback.
+SSH credentials use temporary Linux storage. The guest host key is obtained from the QEMU console or from the first connection after verifying that QEMU owns the loopback listener. Later connections enforce that key. Host disks and shared writable directories are excluded; the forwarded SSH port binds to loopback.
 
-The harness builds one [Debian package](debian-package.md) and a separate test binary before boot. Alternatively, pass `--deb PATH` with its adjacent `.manifest.json`. The package, test binary and guest scripts are frozen in the run directory and hashed; they are never rebuilt or refreshed during the run.
+## Workflow
 
-It installs the package **inside the VM**, verifies installed hashes and confirms installation alone does not enable activation. A local virtual-console login on seat0 exercises the shipped Polkit password policy with cancellation, wrong and correct passwords. Then it runs the synthetic workflow, reboots, installs an additional kernel, rolls back, reboots, injects failures, imports/renders/activates Starfield and reboots again. Finally, package reinstall/remove/purge/reinstall must preserve boot files, assets and receipts. `PASS` is written only after all stages and the final input-hash check succeed.
+The package, test binary and guest scripts are frozen and hashed before boot. The harness then:
 
-The guest test authorization rule is created only after the production-policy password checks. It is scoped to its tester account and fixed helper action and is never included in the package. The temporary test password and console autologin are removed before the transaction suite. Graphical desktop agents remain untested.
+1. Installs the package and verifies installed hashes, unchanged boot files and the absence of an activation marker.
+2. Provisions the test identity and uses a local virtual-console login to test Polkit cancellation, a wrong password and successful authentication.
+3. Removes the temporary password and console autologin, then enables the tester-only rule for unattended transaction tests.
+4. Installs and activates the demo theme, reboots, switches variants, adds a kernel, rolls back and reboots again.
+5. Runs transaction failure and recovery tests.
+6. Imports, previews and activates Starfield, then reboots.
+7. Reinstalls, removes, purges and reinstalls the application, checking that boot files, assets and receipts are retained.
+
+`PASS` is written after all stages and the final input-hash check succeed. The test authorization rule is confined to the guest and excluded from packages. Authentication coverage uses the terminal agent; graphical agents require separate testing.
 
 ## Failure coverage
 
-The VM-only binary is built with `go test -c -tags grubmgr_vmtest ./internal/debian`. Never run it on a workstation. It checks the disposable-VM guard before mutations. No shipped CLI/helper flag enables its failure hooks.
+The harness builds the test executable with `go test -c -tags grubmgr_vmtest ./internal/debian`. Its VM guard is required before mutations; failure hooks are excluded from shipped binaries.
 
-- Injected failure after each transaction phase, including the receipt commit boundary.
-- Interrupted journals at every pre-commit boundary, followed by exact-byte recovery.
-- Actual SIGKILL after settings staging and activation, with kernel-released locks and recovery.
-- A real distro-generator error, stale plans and a conflicting manual defaults edit.
-- Disk-full replacement on a private 1 MiB guest tmpfs: the old file remains intact. This is an atomic-write test, not a claim of full-system ENOSPC recovery coverage.
-- A new installed kernel between activation and later rollback; both entries must remain in regenerated GRUB.
+- Failure after each transaction phase, including the receipt commit boundary.
+- Interruption at every pre-commit journal boundary, followed by exact-byte recovery.
+- SIGKILL after settings staging and activation, with lock recovery.
+- Generator failure, stale plans, external edits and ownership/permission conflicts.
+- Disk-full replacement on a private 1 MiB tmpfs, preserving the old file.
+- Rollback after a kernel update, retaining both entries in generated configuration.
 
-Power loss, every syscall interruption, physical hardware and broad distribution compatibility are outside this test claim. See [Phase 2 verification](phase2-verification.md) for the actual run and any outstanding gates.
+These tests cover the specified VM workflows and failure points. Physical hardware, arbitrary power loss and exhaustion of the entire boot filesystem are outside the executed scope. See [Debian package verification](debian-package-verification.md) and [Linux VM verification](linux-verification.md).
+
+## Cleanup
+
+The harness stops its guest and removes runtime SSH credentials on exit. Run directories and cached images are retained for investigation. After exporting the reports and screenshots and confirming QEMU has stopped, remove the run's disk overlay, seed image and firmware-variable copy. Cached base images can also be removed when no retained overlay depends on them.

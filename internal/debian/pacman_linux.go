@@ -12,9 +12,8 @@ import (
 
 const pacmanOwner = "grubmgr pacman transaction lock v1\n"
 
-// The caller holds operation.lock. Pacman uses exclusive creation, not flock.
-// Linking our durable ownership file makes creation atomic while retaining an
-// inode identity that lets recover remove only our own lock after SIGKILL.
+// The caller holds operation.lock. Pacman locks by exclusive file creation.
+// A hardlink to the durable ownership file identifies this lock during recovery.
 func acquirePacman(root string) (func(), error) {
 	owner := filepath.Join(root, "var/lib/grubmgr/pacman-lock-owner")
 	lock := filepath.Join(root, "var/lib/pacman/db.lck")
@@ -57,7 +56,7 @@ func acquirePacman(root string) (func(), error) {
 		other, err := os.Lstat(lock)
 		if err == nil {
 			if !os.SameFile(info, other) {
-				return fmt.Errorf("pacman lock belongs to another operation; leaving it untouched")
+				return fmt.Errorf("pacman lock belongs to another operation; wait for it to finish")
 			}
 			if err = os.Remove(lock); err != nil {
 				return err
@@ -77,7 +76,7 @@ func acquirePacman(root string) (func(), error) {
 		return nil, err
 	}
 	if _, err := os.Lstat(lock); !os.IsNotExist(err) {
-		return nil, fmt.Errorf("pacman database is locked; no lock was removed")
+		return nil, fmt.Errorf("pacman database is locked; wait for the package operation to finish")
 	}
 	f, err := os.OpenFile(owner, os.O_CREATE|os.O_EXCL|os.O_WRONLY|syscall.O_NOFOLLOW, 0600)
 	if err != nil {

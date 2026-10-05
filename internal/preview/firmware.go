@@ -5,8 +5,7 @@ import (
 	"os"
 )
 
-// Known distro firmware pairs only. The variable store is always copied into
-// the preview namespace; these paths never refer to physical EFI variables.
+// firmware selects a distro OVMF pair for the private preview environment.
 func firmware() (string, string, error) {
 	for _, pair := range [][2]string{
 		{"/usr/share/OVMF/OVMF_CODE_4M.fd", "/usr/share/OVMF/OVMF_VARS_4M.fd"},

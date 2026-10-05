@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-// Serve is the helper entrypoint. There is no caller-selectable root or fault mode.
+// Serve authorizes, decodes and executes one helper request.
 func Serve(in io.Reader, out io.Writer) int {
 	var result any
 	err := helperIdentity()
@@ -428,8 +428,8 @@ func restore(r *os.Root, db *state.Store, tx *state.Transaction) error {
 				return fmt.Errorf("restoration verification failed")
 			}
 		}
-		// Retain even newly staged assets. Nothing may delete an asset another
-		// administrator selected while a transaction was interrupted.
+		// Retain staged assets: an administrator may have selected them while
+		// this transaction was interrupted.
 		_ = r.Remove("boot/grub/.grubmgr-" + tx.ID + ".cfg")
 		return nil
 	}()

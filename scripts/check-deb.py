@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inspect our package without installing it or executing maintainer scripts."""
+"""Verify Debian archive contents against the build manifest."""
 import hashlib
 import io
 import json

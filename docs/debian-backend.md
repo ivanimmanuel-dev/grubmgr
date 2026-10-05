@@ -1,38 +1,38 @@
-# Debian backend
+# Debian profile and recovery
 
-Activation is experimental and restricted to the disposable test VM. Do not install the VM marker or test authorization rule on a workstation.
+The `debian13-uefi-vm` profile supports this disposable VM configuration:
 
 | Item | Tested value |
 | --- | --- |
-| OS / architecture | Debian 13.7, amd64 |
-| GRUB | grub-common and grub2-common 2.12-9+deb13u2 |
+| OS and architecture | Debian 13.7, amd64 |
+| GRUB packages | `grub-common` and `grub2-common` 2.12-9+deb13u2 |
 | Machine | QEMU Q35, TCG, 2 CPUs, 2 GiB RAM |
-| Firmware | OVMF UEFI; Secure Boot variable reports disabled |
+| Firmware | OVMF UEFI; Secure Boot disabled |
 | Storage | Writable ext4 root including `/boot`; FAT `/boot/efi` |
-| Defaults | `/etc/default/grub`; root-owned fragments may not override GRUB_THEME |
+| Defaults | `/etc/default/grub`; fragments must not override `GRUB_THEME` |
 | Generated configuration | `/boot/grub/grub.cfg` |
 | Theme assets | `/boot/grub/themes/grubmgr/NAMESPACE/NAME/REVISION` |
-| Candidate command | `/usr/sbin/grub-mkconfig -o /boot/grub/.grubmgr-TRANSACTION.cfg` |
+| Candidate generation | `/usr/sbin/grub-mkconfig -o /boot/grub/.grubmgr-TRANSACTION.cfg` |
 | Candidate check | `/usr/bin/grub-script-check CANDIDATE` |
-| Helper | `/usr/libexec/grubmgr-helper`, invoked through Polkit |
+| Helper | `/usr/libexec/grubmgr-helper`, authorized by Polkit |
 | State | `/var/lib/grubmgr/{data,state,cache}` |
 
-`doctor` reports SUPPORTED, SUPPORTED WITH WARNINGS, UNSUPPORTED or AMBIGUOUS. This experimental target always carries a warning. Conflicting boot layouts, unsupported versions and uncertain theme assignments cause refusal. The VM check precedes real mutation.
+`doctor` reports `SUPPORTED WITH WARNINGS` for this experimental profile, `UNSUPPORTED` for an untested configuration, or `AMBIGUOUS` for conflicting boot layouts. The helper checks the VM identity before mutation.
 
-The backend preserves unrelated defaults byte-for-byte. Candidate generation consumes the installed Debian scripts and current kernel/initrd files. It never uses an invented alternate-defaults flag. Debian documents the supported output option in [grub-mkconfig(8)](https://manpages.debian.org/trixie/grub-common/grub-mkconfig.8.en.html).
+Activation preserves unrelated defaults byte-for-byte. Debian's generator reads the staged theme assignment, installed GRUB scripts and current kernel/initrd files, then writes a separate candidate using its documented [output option](https://manpages.debian.org/trixie/grub-common/grub-mkconfig.8.en.html).
 
-## Real theme
+## Starfield import
 
-`debian/starfield` imports the installed `grub-theme-starfield` 2.12-9+deb13u2 data package. It does not invoke apt or package scripts. The canonical package is [Debian Starfield](https://packages.debian.org/trixie/grub-theme-starfield). Its installed directory is the explicit theme root; the upstream theme.txt, README, Debian copyright, font copyright and GPL text are preserved.
+`debian/starfield` imports the installed [grub-theme-starfield](https://packages.debian.org/trixie/grub-theme-starfield) 2.12-9+deb13u2 data package. The installed theme directory is the explicit root. Each imported revision preserves `theme.txt`, `README`, `DEBIAN-COPYRIGHT`, `FONT-COPYRIGHT` and `GPL-3`.
 
-The catalog pins the normalized file-inventory SHA-256 to `b85ca5d4edb4af357c3ffa67bdf4dc74e43c436d94354ea2c714c63970cc4739`. For this provider, artifact identity means the imported directory plus notices, not the hash of a .deb archive. The helper pins the same tree. A changed Debian build or notice file requires a reviewed recipe update.
+The catalog and helper pin the normalized file-inventory SHA-256 to `b85ca5d4edb4af357c3ffa67bdf4dc74e43c436d94354ea2c714c63970cc4739`. For this provider, the artifact digest covers the imported directory and notices. A changed package or notice file requires a recipe review.
 
-Theme layout is MIT, artwork CC-BY-SA-3.0 and bundled DejaVu font data Bitstream-Vera/public-domain changes, according to the preserved package notices. Assets are not relicensed as application code or bundled in this repository. Grub of Tsushima remains deferred because its Sony artwork and third-party font permissions are unconfirmed.
+The preserved notices identify the layout as MIT, artwork as CC-BY-SA-3.0, and DejaVu font data as Bitstream-Vera with public-domain changes. Starfield assets are imported from Debian and retain those terms.
 
 ## Recovery
 
-After an interrupted operation, run `grubmgr recover` as the ordinary guest user. The helper reacquires locks and verifies recovery hashes. If an administrator changed either target, keep the journal, inspect the competing files and resolve the conflict before retrying. Do not delete receipts to suppress a recovery error.
+After an interrupted operation, run `grubmgr recover` as the ordinary guest user. The helper reacquires locks and verifies recovery hashes. If either target has an external edit, retain the journal, inspect the competing files and resolve the conflict before retrying.
 
-Later user rollback uses `grubmgr plan rollback TRANSACTION`, followed by `grubmgr apply TOKEN`. It selects the previous retained theme and regenerates against current kernels. Old snapshots are used only for immediate transaction recovery.
+For a later rollback, run `grubmgr plan rollback TRANSACTION_ID`, review the plan, then run `grubmgr apply TOKEN`. This restores the previous managed theme selection and regenerates configuration with the current kernels. Immediate transaction recovery uses the recorded snapshots.
 
-This profile does not cover physical Debian machines, WSL activation, BIOS, Secure Boot enabled, separate boot mounts, non-ext4 roots, customizer or snapshot integrations. Ubuntu, Kali and Arch use the separate profiles described in [Linux targets](linux-support.md). Fedora remains detection-only.
+Physical Debian machines, WSL, BIOS, Secure Boot enabled, separate `/boot`, non-ext4 roots and customizer/snapshot integrations are outside this profile. Ubuntu, Kali and Arch have distinct [Linux profiles](linux-support.md).

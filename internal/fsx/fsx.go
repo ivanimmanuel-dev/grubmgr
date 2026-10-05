@@ -109,11 +109,10 @@ func Write(r *os.Root, p string, b []byte) error {
 	return ce
 }
 
-// Replace is only used inside explicit fixture roots. Rename is on the same filesystem.
+// Replace updates a file inside a synthetic fixture root.
 func Replace(r *os.Root, p string, b []byte) error {
-	// Windows os.Root.Rename replacement is not available in some restricted
-	// environments. Fixture-only writes use the already durable recovery journal.
-	// This fallback is intentionally not a future real activation primitive.
+	// Restricted Windows environments may deny rename-over-existing. Fixtures
+	// use in-place writes there, backed by the transaction recovery journal.
 	if runtime.GOOS == "windows" {
 		if e := SafePath(p); e != nil {
 			return e

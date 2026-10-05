@@ -29,7 +29,7 @@ func secure(name string, directory bool) error {
 		}
 		st, ok := info.Sys().(*syscall.Stat_t)
 		if !ok || st.Uid != 0 || info.Mode().Perm()&0022 != 0 {
-			return fmt.Errorf("not root-owned and protected: %s", current)
+			return fmt.Errorf("path must be root-owned and not writable by group or others: %s", current)
 		}
 		if current == name && ((directory && !info.IsDir()) || (!directory && !info.Mode().IsRegular())) {
 			return fmt.Errorf("unexpected file type: %s", current)
@@ -42,7 +42,7 @@ func secure(name string, directory bool) error {
 }
 
 // atomicReplace writes on the destination filesystem, preserves mode/owner, and
-// syncs both the file and its directory. First-target files have no extra xattrs.
+// syncs both the file and its directory. Targets with xattrs are rejected.
 func atomicReplace(r *os.Root, name string, data []byte) error {
 	if n, err := unix.Listxattr("/"+name, nil); err != nil && err != unix.ENOTSUP {
 		return err

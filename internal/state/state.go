@@ -1,4 +1,4 @@
-// Package state persists receipts and journals. Filesystem changes are not SQL-atomic.
+// Package state stores package receipts and transaction journals in SQLite.
 package state
 
 import (
@@ -184,7 +184,7 @@ func (s *Store) Journal(t Transaction) error {
 	return e
 }
 
-// Finish changes the receipt set and journal atomically inside SQLite only.
+// Finish commits the receipt set and journal in one SQLite transaction.
 func (s *Store) Finish(packages []model.Package, t Transaction) error {
 	tx, e := s.db.Begin()
 	if e != nil {

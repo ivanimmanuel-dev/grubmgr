@@ -1,4 +1,4 @@
-"""Disposable QEMU guests; no host disks, boot configuration or shared directories."""
+"""Create, operate and stop disposable QEMU test guests."""
 import hashlib
 import json
 import os

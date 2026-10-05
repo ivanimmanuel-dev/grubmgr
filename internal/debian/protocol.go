@@ -21,7 +21,7 @@ import (
 const Helper = "/usr/libexec/grubmgr-helper"
 const MaxRequest = 180 << 20
 
-// Request contains data and identifiers only. Paths and commands are not protocol fields.
+// Request describes an operation using package data and plan identifiers.
 type Request struct {
 	Operation string          `json:"operation"`
 	Plan      string          `json:"plan,omitempty"`
@@ -128,8 +128,8 @@ func LoadBundle(p system.Paths, target string) (*Bundle, error) {
 	return b, CheckBundle(b)
 }
 
-// CheckBundle checks a compiled, reviewed recipe as well as every byte. A caller's
-// reviewed/license flags alone never grant access to the root package store.
+// CheckBundle verifies the recipe against the compiled catalog and checks each
+// file against its inventory entry and approved content pin.
 func CheckBundle(b *Bundle) error {
 	if b == nil {
 		return nil
@@ -177,7 +177,7 @@ func CheckBundle(b *Bundle) error {
 			}
 		}
 	} else if entry.TreeSHA256 == "" || m.TreeSHA256 != entry.TreeSHA256 {
-		return fmt.Errorf("package tree is not pinned by the installed catalogue")
+		return fmt.Errorf("package tree is not pinned by the installed catalog")
 	}
 	return nil
 }
