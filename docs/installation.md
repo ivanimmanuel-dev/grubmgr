@@ -2,49 +2,43 @@
 
 ## Download and install
 
-Download the package for your system from [GRUB Manager 0.4.0-rc.1](https://github.com/ivanimmanuel-dev/grubmgr/releases/tag/v0.4.0-rc.1):
+Download the package for your system from [GRUB Manager 0.4.0-rc.2](https://github.com/ivanimmanuel-dev/grubmgr/releases/tag/v0.4.0-rc.2):
 
 | System | File |
 | --- | --- |
-| Debian, Ubuntu or Kali Â· x86-64 | `grubmgr_0.4.0rc1-1_amd64.deb` |
-| Arch Â· x86-64 | `grubmgr-0.4.0rc1-1-x86_64.pkg.tar.xz` |
+| Debian, Ubuntu or Kali (x86-64) | `grubmgr_0.4.0rc2-1_amd64.deb` |
+| Arch (x86-64) | `grubmgr-0.4.0rc2-1-x86_64.pkg.tar.xz` |
 
 Download its matching `.sha256` file into the same directory. Check the download before installing:
 
 ```sh
-sha256sum -c grubmgr_0.4.0rc1-1_amd64.deb.sha256
-sudo apt install ./grubmgr_0.4.0rc1-1_amd64.deb
+sha256sum -c grubmgr_0.4.0rc2-1_amd64.deb.sha256
+sudo apt install ./grubmgr_0.4.0rc2-1_amd64.deb
 ```
 
 On Arch:
 
 ```sh
-sha256sum -c grubmgr-0.4.0rc1-1-x86_64.pkg.tar.xz.sha256
-sudo pacman -U ./grubmgr-0.4.0rc1-1-x86_64.pkg.tar.xz
+sha256sum -c grubmgr-0.4.0rc2-1-x86_64.pkg.tar.xz.sha256
+sudo pacman -U ./grubmgr-0.4.0rc2-1-x86_64.pkg.tar.xz
 ```
 
 Then run `grubmgr doctor`. Use the CLI as your ordinary user from an active local desktop or console session; Polkit prompts for administrator authentication when needed. Installing the package leaves the selected boot theme unchanged.
 
 ## Supported configurations
 
-Activation supports conventional x86-64 UEFI installations with Secure Boot disabled:
+Supported distributions are Debian 13, Ubuntu 24.04, Kali rolling and Arch rolling. Theme activation requires:
 
-| Distribution | GRUB | Filesystem |
-| --- | --- | --- |
-| Debian 13 | Installed GRUB 2 packages | Writable ext4 or Btrfs |
-| Ubuntu 24.04 | Installed GRUB 2 packages | Writable ext4 or Btrfs |
-| Kali rolling | Installed GRUB 2 packages | Writable ext4 or Btrfs |
-| Arch rolling | Installed GRUB 2 package | Writable ext4 or Btrfs |
+- An x86-64 UEFI installation with Secure Boot disabled.
+- Installed GRUB 2 packages and a graphical GRUB terminal (`gfxterm`).
+- Writable ext4 or Btrfs filesystems for the root and `/boot`. A separate `/boot` mount is supported.
+- Configuration at `/etc/default/grub` and `/boot/grub/grub.cfg`.
 
-`/boot` may be part of the root filesystem or a separate writable ext4 or Btrfs mount. Configuration uses `/etc/default/grub` and `/boot/grub/grub.cfg`. Theme activation requires a graphical GRUB terminal (`gfxterm`). If the menu is configured for text only, the command reports that setting and restores the previous configuration.
-
-The helper checks installed packages, file ownership, boot mounts and the configuration generator before changing anything. GRUB package updates within version 2 do not require an application rebuild. Boot and rollback checks run in UEFI QEMU guests.
-
-BIOS boot, enabled or unreadable Secure Boot, other filesystems, immutable systems, GRUB Customizer and snapshot integrations are outside this release. WSL can import and validate themes but cannot activate them. Import and validation also work on Windows; the downloadable packages are for Linux.
+`grubmgr doctor` reports whether your configuration is supported. BIOS boot, other filesystems, immutable systems, GRUB Customizer and snapshot integrations are unsupported. Import and validation also work on Windows and WSL; activation and preview require Linux.
 
 ## Upgrade from 0.3
 
-Install the new package normally. Existing installed revisions and transaction records are retained. Fetch the current built-in recipe before importing another demo revision. New switches can back up an unmanaged theme; older transactions cannot restore a theme that was never backed up.
+Install the new package normally. Installed revisions and transaction records are retained. New switches back up the previous theme, including themes installed outside GRUB Manager. Older transactions can restore only themes they recorded.
 
 ## Preview setup
 

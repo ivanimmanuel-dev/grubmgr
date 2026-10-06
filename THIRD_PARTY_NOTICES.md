@@ -23,10 +23,10 @@ The following unmodified Go modules are pinned in `go.mod` and verified through 
 
 ## External programs
 
-`grub2-theme-preview` 2.10.0 is a separately installed CLI, Copyright Sebastian Pipping, licensed GPL-2.0-or-later. GRUB Manager invokes it through an isolated preview adapter. GRUB, Polkit, Bubblewrap, QEMU, OVMF, xorriso, mtools and the renderer are supplied separately by the system or test setup.
+`grub2-theme-preview` 2.10.0 is a separately installed CLI, Copyright Sebastian Pipping, licensed GPL-2.0-or-later. GRUB Manager invokes it through an isolated preview adapter. GRUB, Polkit, Bubblewrap, QEMU, OVMF, xorriso, mtools and the renderer are installed separately.
 
 ## Theme assets
 
 The built-in demo includes its full MIT notice in every imported and installed revision.
 
-The `debian/starfield` recipe imports Debian's installed `grub-theme-starfield` 2.12-9+deb13u2 package. Every revision preserves `theme.txt`, `README`, `DEBIAN-COPYRIGHT`, `FONT-COPYRIGHT` and `GPL-3`. The notices identify the layout as MIT, artwork as CC-BY-SA-3.0, and DejaVu font data as Bitstream-Vera with public-domain changes. Use `grubmgr info starfield` to view its source and content digest.
+The `debian/starfield` recipe imports Debian's installed `grub-theme-starfield` 2.12-9+deb13u2 package. Every revision preserves `theme.txt`, `README`, `DEBIAN-COPYRIGHT`, `FONT-COPYRIGHT` and `GPL-3`. The notices identify the layout as MIT, artwork as CC-BY-SA-3.0, and DejaVu font data as Bitstream-Vera with public-domain changes. Use `grubmgr --json info starfield` to view its source and content digest.

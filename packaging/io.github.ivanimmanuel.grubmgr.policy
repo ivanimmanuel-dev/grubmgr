@@ -3,7 +3,7 @@
 <policyconfig>
   <vendor>GRUB Manager</vendor>
   <action id="io.github.ivanimmanuel.grubmgr.manage">
-    <description>Manage GRUB themes in a supported test VM</description>
+    <description>Manage GRUB themes</description>
     <message>Authenticate to inspect or manage GRUB themes.</message>
     <defaults>
       <allow_any>no</allow_any>

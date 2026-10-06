@@ -101,7 +101,7 @@ func grub2Version(version string) bool {
 	return strings.HasPrefix(version, "2.") && len(version) > 2 && version[2] >= '0' && version[2] <= '9'
 }
 
-// bootLayout derives mount information instead of requiring a test image layout.
+// bootLayout reads the root and boot filesystems from mountinfo.
 func bootLayout(mounts string, p profile) (profile, error) {
 	rootOK := false
 	for _, line := range strings.Split(mounts, "\n") {
@@ -175,7 +175,7 @@ func selectProfile(release []byte) (profile, error) {
 			return p, nil
 		}
 	}
-	return profile{}, fmt.Errorf("untested distribution or release: %s %s", fields["ID"], fields["VERSION_ID"])
+	return profile{}, fmt.Errorf("unsupported distribution or release: %s %s", fields["ID"], fields["VERSION_ID"])
 }
 
 func dpkgVersions(status []byte) map[string]string {

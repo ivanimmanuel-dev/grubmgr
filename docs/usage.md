@@ -60,7 +60,7 @@ grubmgr info namespace/theme
 grubmgr install namespace/theme
 ```
 
-Replace the URL and digest with those supplied by the catalog publisher. A catalog is a [JSON recipe index](package-format.md#catalog-index). Each downloadable theme needs an exact HTTPS artifact URL, SHA-256 digest and reviewed recipe. Adding a catalog changes your account's listings; it does not install themes.
+Replace the URL and digest with those supplied by the catalog publisher. A catalog is a [JSON recipe index](package-format.md#catalog-index). Each downloadable theme needs an exact HTTPS archive URL, SHA-256 digest and reviewed recipe. Adding a catalog changes your account's listings; it does not install themes.
 
 Catalogs cannot replace built-in IDs or IDs from another catalog. Use full namespaced IDs when short names are ambiguous.
 
@@ -93,7 +93,7 @@ grubmgr rollback TRANSACTION_ID
 
 Rollback selects the theme that preceded that transaction and regenerates the menu with current kernels. Managed revisions remain on disk. Before switching away from a theme installed outside GRUB Manager, the helper copies and verifies its assets in a retained backup. Rollback uses that copy even if the original directory has been removed.
 
-An existing theme needs a canonical absolute entry path and root-owned assets. System file links are copied into regular backup files. Writable assets, links to directories and unsupported theme data prevent the change. Transactions from 0.3 have no backup of an unmanaged previous theme.
+An existing theme needs a canonical absolute entry path and root-owned assets. System file links are copied into regular backup files. Writable assets, links to directories and unsupported theme data prevent the change.
 
 After an interrupted operation:
 
@@ -113,14 +113,14 @@ Removal deactivates the theme if selected and clears its installed status. Its f
 
 ## Plans and scripting
 
-For a separate review step:
+To save a plan before applying it:
 
 ```sh
 grubmgr plan switch cyberpunk-demo --variant hd
 grubmgr apply PLAN_TOKEN
 ```
 
-Use the complete `plan_id` returned by `plan`. If the package, configuration or boot inventory changes, create a new plan.
+Use the complete token printed by `plan`, or its `plan_id` field in JSON output. If the package, configuration or boot inventory changes, create a new plan.
 
 Direct commands accept `--yes` to confirm the change. Combine it with `--json` for machine-readable output; Polkit authentication still applies. `--log-json` writes logs to stderr.
 

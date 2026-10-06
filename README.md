@@ -2,23 +2,23 @@
 
 A command-line package manager for GRUB themes. Import community themes, validate their assets, preview them in QEMU and switch your boot menu. Each revision retains its source, file hashes and license notices. Rollback restores a previous theme while keeping current kernel entries.
 
-**0.4.0-rc.1** supports conventional x86-64 UEFI GRUB installations on Debian 13, Ubuntu 24.04, Kali rolling and Arch rolling. Secure Boot must be disabled. Run `grubmgr doctor` to check your [configuration](docs/installation.md#supported-configurations).
+**0.4.0-rc.2** supports conventional x86-64 UEFI GRUB installations on Debian 13, Ubuntu 24.04, Kali rolling and Arch rolling. Secure Boot must be disabled. Run `grubmgr doctor` to check your [configuration](docs/installation.md#supported-configurations).
 
 ## Download
 
 | Your system | Package |
 | --- | --- |
-| Debian, Ubuntu or Kali · x86-64 | [Download .deb](https://github.com/ivanimmanuel-dev/grubmgr/releases/download/v0.4.0-rc.1/grubmgr_0.4.0rc1-1_amd64.deb) |
-| Arch · x86-64 | [Download Arch package](https://github.com/ivanimmanuel-dev/grubmgr/releases/download/v0.4.0-rc.1/grubmgr-0.4.0rc1-1-x86_64.pkg.tar.xz) |
+| Debian, Ubuntu or Kali (x86-64) | [Download .deb](https://github.com/ivanimmanuel-dev/grubmgr/releases/download/v0.4.0-rc.2/grubmgr_0.4.0rc2-1_amd64.deb) |
+| Arch (x86-64) | [Download Arch package](https://github.com/ivanimmanuel-dev/grubmgr/releases/download/v0.4.0-rc.2/grubmgr-0.4.0rc2-1-x86_64.pkg.tar.xz) |
 
-[Release details and checksums](https://github.com/ivanimmanuel-dev/grubmgr/releases/tag/v0.4.0-rc.1)
+[Release details and checksums](https://github.com/ivanimmanuel-dev/grubmgr/releases/tag/v0.4.0-rc.2)
 
 ```sh
 # Debian, Ubuntu or Kali
-sudo apt install ./grubmgr_0.4.0rc1-1_amd64.deb
+sudo apt install ./grubmgr_0.4.0rc2-1_amd64.deb
 
 # Arch
-sudo pacman -U ./grubmgr-0.4.0rc1-1-x86_64.pkg.tar.xz
+sudo pacman -U ./grubmgr-0.4.0rc2-1-x86_64.pkg.tar.xz
 ```
 
 Installing the package leaves your boot menu unchanged. Use `grubmgr` as your ordinary user; Polkit requests administrator authentication for system changes.

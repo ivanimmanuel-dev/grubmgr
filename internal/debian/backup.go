@@ -100,9 +100,7 @@ func backupOriginal(root string, m *model.Manifest) error {
 	return f.Sync()
 }
 
-// Distro-installed themes can refer to root-owned system fonts through links.
-// Resolve those trusted inputs into regular backup files; imported bundles still
-// reject all links. No links are created in the retained backup.
+// copyOriginal copies root-owned font links into regular backup files.
 func copyOriginal(root, theme, destination string) error {
 	directory, err := filepath.EvalSymlinks(path.Join(root, path.Dir(theme)))
 	if err != nil {

@@ -1,6 +1,6 @@
 # Package and recipe format
 
-Schema 1 describes theme data, provenance and compatibility. JSON decoding rejects unknown fields. Use [local-recipe.json](../examples/local-recipe.json) as a starting point for your own theme; `grubmgr info ID` shows a themeâ€™s catalog recipe.
+A recipe describes a theme's files, source, license and variants. Start with [local-recipe.json](../examples/local-recipe.json). Use `grubmgr --json info ID` to inspect a catalog recipe or an imported theme's metadata.
 
 ## Recipe fields
 
@@ -29,7 +29,7 @@ Schema 1 describes theme data, provenance and compatibility. JSON decoding rejec
 | `kali-grub` | Kali rolling |
 | `arch-grub` | Arch rolling |
 
-Architecture and firmware constraints use `amd64` and `uefi`. The helper independently checks the [system configuration](installation.md#supported-configurations), package hashes and theme data. `reviewed` and `license.verified` record curator assertions; they do not bypass validation. Required capabilities such as `gfxterm` describe the theme's rendering requirements.
+Architecture and firmware constraints use `amd64` and `uefi`. Required capabilities such as `gfxterm` describe rendering requirements. `reviewed` and `license.verified` record the catalog publisher's review; every import still undergoes validation.
 
 ### Selecting files from a collection
 
@@ -87,7 +87,7 @@ A catalog is a JSON array of records containing `recipe`, optional `status` and 
 ]
 ```
 
-Replace the example identity, URLs, license and digest before using the index. IDs must be unique. Online indexes require their own SHA-256 when registered. Limits are 4 MiB and 2,048 records per index, with at most 32 registered catalogs. Each theme archive is downloaded and checked independently. See [catalog commands](usage.md#community-catalogs).
+Replace the example identity, URLs, license and digest before using the index. IDs must be unique. Online indexes require their own SHA-256 when registered. Limits are 4 MiB and 2,048 records per index, with at most 32 registered catalogs. See [catalog commands](usage.md#community-catalogs).
 
 ## Package identity
 
@@ -133,6 +133,6 @@ Asset references resolve relative to the entry directory. Nested paths and pixma
 
 PNG and JPEG files are decoded within resource limits. The PF2 inspector checks section framing, signature, `NAME`, `CHIX` record size and `DATA` presence. Glyph rendering and other image formats require preview or additional validator support. Executable signatures and script extensions are rejected.
 
-`BOOT_UNVERIFIED` reports that no boot test was performed. Use preview to check rendering.
+Use preview to check rendering. Validation reports this as `BOOT_UNVERIFIED` because it checks files and references without booting GRUB.
 
 Receipts retain the selected variant, validation report, installed and active flags. Multiple immutable revisions can coexist. Select a full revision when an ID is ambiguous.

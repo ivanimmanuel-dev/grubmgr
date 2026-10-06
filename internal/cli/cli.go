@@ -22,29 +22,30 @@ import (
 	"text/tabwriter"
 )
 
-const Version = "0.4.0-rc.1"
+const Version = "0.4.0-rc.2"
 const help = `GRUB Manager (grubmgr)
 
-Usage: grubmgr [--json] [--log-json] [--root FIXTURE] COMMAND
+Usage: grubmgr [--json] [--log-json] [--yes] COMMAND
 
   version | help
-  doctor                            Read-only system inspection
+  doctor                            Check your GRUB setup
   search [QUERY] | info ID           Browse themes
   catalog list | add NAME SOURCE [--sha256 HASH] | remove NAME
   fetch SOURCE [--recipe FILE]       Import a theme package
   validate PATH_OR_ID [--recipe FILE]
-  list                              Show imported packages
-  status | history                  Show managed state and transactions
-  install SOURCE [--recipe FILE]    Import and install a theme
-  switch ID [--variant ID]          Select an installed theme
+  list                              Show imported themes
+  status | history                  Show installed themes and change history
+  install SOURCE [--recipe FILE]     Import and install a theme
+  switch ID [--variant ID]           Select an installed theme
   remove ID | rollback TRANSACTION_ID
   plan install|switch|remove ID [--variant ID]
   plan rollback TRANSACTION_ID       Restore the previous theme selection
-  apply TOKEN                       Apply the reviewed plan
+  apply TOKEN                       Apply a saved plan
   recover                           Recover an interrupted transaction
   preview ID [--variant ID]          Render a menu with GRUB and QEMU
 
-Activation supports Debian 13, Ubuntu 24.04, Kali and Arch UEFI installations.
+Supports x86-64 UEFI GRUB on Debian 13, Ubuntu 24.04, Kali and Arch.
+Secure Boot must be disabled. Run doctor to check your configuration.
 Install copies assets; switch activates a theme.
 Use --yes to confirm a direct operation in scripts.
 `
@@ -369,11 +370,7 @@ func execute(o options) (any, error) {
 		if !p.Fixture {
 			return preview.Capture(state.Content(p, pkg.Manifest.Revision), filepath.Join(p.Cache, "previews"), pkg.Manifest, o.variant)
 		}
-		report, e := system.Inspect(p)
-		if e != nil {
-			return nil, e
-		}
-		return nil, (preview.External{System: report}).Preview(filepath.Clean(state.Content(p, pkg.Manifest.Revision)))
+		return nil, output.Fail(output.Unsupported, "PREVIEW_DISABLED", "preview requires the installed Linux CLI without --root")
 	default:
 		return nil, output.Fail(output.Usage, "COMMAND", "unknown command %s; see help", command)
 	}
@@ -394,22 +391,37 @@ func canonical(id string, config ...string) string {
 func render(w io.Writer, value any) {
 	switch v := value.(type) {
 	case debian.Environment:
-		fmt.Fprintf(w, "Support: %s\nBackend: %s\nGRUB: %s\nFirmware: %s\nLayout: %s\n%s\n", v.Status, v.Backend, v.GRUBVersion, v.Firmware, v.Layout, v.Reason)
+		fmt.Fprintf(w, "Status: %s\nGRUB: %s\nFirmware: %s\nFilesystem: %s\n%s\n", v.Status, display(v.GRUBVersion, "Not detected"), display(v.Firmware, "Not detected"), display(v.Layout, "Not detected"), v.Reason)
 	case string:
 		fmt.Fprint(w, v)
 	case system.Report:
-		fmt.Fprintf(w, "GRUB Manager %s\n\nSystem: %s %s / %s / %s\nGRUB evidence: %t; version: %s\nTheme: %s\nBackend: %s (%s)\n%s\nPreview: %s\n", Version, v.Distribution, v.Version, v.Architecture, v.Firmware, v.GRUBInstalled, v.GRUBVersion, v.Theme, v.Backend, v.Status, v.Reason, v.Preview)
+		grub := "Not detected"
+		if v.GRUBInstalled {
+			grub = v.GRUBVersion
+		}
+		fmt.Fprintf(w, "System: %s %s / %s / %s\nStatus: %s\nGRUB: %s\nTheme: %s\n%s\nPreview: %s\n", v.Distribution, v.Version, v.Architecture, v.Firmware, v.Status, grub, display(v.Theme, "Default menu"), v.Reason, v.Preview)
 		for _, s := range v.Warnings {
 			fmt.Fprintln(w, "WARN", s)
 		}
 	case model.Validation:
 		for _, f := range v.Findings {
-			fmt.Fprintf(w, "%s %s %s:%d — %s\n", f.Severity, f.Code, f.File, f.Line, f.Message)
+			location := ""
+			if f.File != "" {
+				location = " " + f.File
+				if f.Line > 0 {
+					location += fmt.Sprintf(":%d", f.Line)
+				}
+			}
+			fmt.Fprintf(w, "%s %s%s: %s\n", f.Severity, f.Code, location, f.Message)
 		}
 		fmt.Fprintln(w, validate.Summary(v))
 	case model.Package:
-		fmt.Fprintf(w, "%s\nID: %s\nRevision: %s\nSource: %s\nLicense: %s\nValidation: %s\n", v.Manifest.Name, v.Manifest.ID, v.Manifest.Revision, v.Manifest.Source.URL, v.Manifest.License.SPDX, validate.Summary(v.Validation))
+		fmt.Fprintf(w, "%s\nID: %s\nRevision: %s\nSource: %s\nLicense: %s\nValidation: %s\n", v.Manifest.Name, v.Manifest.ID, v.Manifest.Revision, v.Manifest.Source.URL, display(v.Manifest.License.SPDX, "Not specified"), validate.Summary(v.Validation))
 	case []model.Package:
+		if len(v) == 0 {
+			fmt.Fprintln(w, "No themes. Run grubmgr search to browse the catalog.")
+			return
+		}
 		table := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
 		fmt.Fprintln(table, "ID\tREVISION\tINSTALLED\tACTIVE\tVARIANT")
 		for _, pkg := range v {
@@ -417,6 +429,10 @@ func render(w io.Writer, value any) {
 		}
 		table.Flush()
 	case []catalog.Entry:
+		if len(v) == 0 {
+			fmt.Fprintln(w, "No matching themes.")
+			return
+		}
 		table := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
 		fmt.Fprintln(table, "ID\tNAME\tSOURCE")
 		for _, entry := range v {
@@ -424,18 +440,40 @@ func render(w io.Writer, value any) {
 		}
 		table.Flush()
 	case catalog.Entry:
-		fmt.Fprintf(w, "%s\nID: %s\nVersion: %s\nAuthor: %s\nSource: %s\nLicense: %s\n", v.Recipe.Name, v.Recipe.ID, v.Recipe.Version, v.Recipe.Author, v.Recipe.Source.URL, v.Recipe.License.SPDX)
+		fmt.Fprintf(w, "%s\nID: %s\nVersion: %s\nAuthor: %s\nSource: %s\nLicense: %s\n", v.Recipe.Name, v.Recipe.ID, v.Recipe.Version, v.Recipe.Author, v.Recipe.Source.URL, display(v.Recipe.License.SPDX, "Not specified"))
 	case catalog.Registry:
 		fmt.Fprintf(w, "Added catalog %s: %d themes\nSHA-256: %s\n", v.Name, v.Themes, v.SHA256)
 	case []catalog.Registry:
-		for _, registry := range v {
-			fmt.Fprintf(w, "%s\t%d themes\t%s\n", registry.Name, registry.Themes, registry.SHA256)
+		if len(v) == 0 {
+			fmt.Fprintln(w, "No community catalogs. Run grubmgr catalog add NAME SOURCE to add one.")
+			return
 		}
+		table := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+		fmt.Fprintln(table, "NAME\tTHEMES\tSHA-256")
+		for _, registry := range v {
+			fmt.Fprintf(table, "%s\t%d\t%s\n", registry.Name, registry.Themes, registry.SHA256)
+		}
+		table.Flush()
 	case []state.Transaction:
+		if len(v) == 0 {
+			fmt.Fprintln(w, "No transactions.")
+			return
+		}
 		table := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
 		fmt.Fprintln(table, "TRANSACTION\tACTION\tRESULT\tTIME")
 		for _, tx := range v {
 			fmt.Fprintf(table, "%s\t%s\t%s\t%s\n", tx.ID, tx.Action, tx.Phase, tx.CreatedAt)
+		}
+		table.Flush()
+	case []map[string]any:
+		if len(v) == 0 {
+			fmt.Fprintln(w, "No transactions.")
+			return
+		}
+		table := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+		fmt.Fprintln(table, "TRANSACTION\tACTION\tRESULT\tTIME")
+		for _, tx := range v {
+			fmt.Fprintf(table, "%s\t%s\t%s\t%s\n", tx["id"], tx["action"], tx["phase"], tx["created_at"])
 		}
 		table.Flush()
 	case map[string]any:
@@ -443,22 +481,49 @@ func render(w io.Writer, value any) {
 			fmt.Fprintf(w, "GRUB Manager %s\n", version)
 		} else if transaction, ok := v["transaction"]; ok {
 			fmt.Fprintf(w, "Transaction %s: %s\n", transaction, v["phase"])
+		} else if report, ok := v["system"].(system.Report); ok {
+			render(w, report)
+			fmt.Fprintln(w)
+			render(w, v["packages"])
 		} else {
 			_ = output.Write(w, value)
 		}
 	case planner.Plan:
-		fmt.Fprintf(w, "PLAN %s\n\n%s %s@%s\nArtifact SHA-256: %s\nTree SHA-256: %s\nDestination: %s\nTheme: %q -> %q\nValidation: %s\nCompatibility: %s\nPrivileges: %s\nGenerator: %v\nApplicable: %t — %s\n", v.ID, v.Request.Action, v.ThemeID, v.Revision, v.ArtifactSHA256, v.TreeSHA256, v.Destination, v.BeforeTheme, v.AfterTheme, v.Validation, v.Compatibility, v.Privileges, v.Generator, v.Applicable, v.Reason)
-		for _, s := range v.Add {
-			fmt.Fprintln(w, "+", s)
+		fmt.Fprintf(w, "Action: %s\n", v.Request.Action)
+		if v.ThemeID != "" {
+			fmt.Fprintf(w, "Theme: %s@%.12s\n", v.ThemeID, v.Revision)
 		}
-		for _, s := range v.Remove {
-			fmt.Fprintln(w, "-", s)
+		if v.Destination != "" {
+			fmt.Fprintf(w, "Destination: %s\n", v.Destination)
+		}
+		if v.AfterTheme != v.BeforeTheme {
+			fmt.Fprintf(w, "Selection: %s -> %s\n", display(v.BeforeTheme, "Default menu"), display(v.AfterTheme, "Default menu"))
+		}
+		if v.ThemeBackup != "" {
+			fmt.Fprintf(w, "Previous theme backup: %s\n", v.ThemeBackup)
+		}
+		if len(v.Add) != 0 || len(v.Remove) != 0 {
+			fmt.Fprintf(w, "Files: %d to add, %d to remove\n", len(v.Add), len(v.Remove))
 		}
 		for _, s := range v.Retained {
 			fmt.Fprintln(w, "Retain:", s)
 		}
-		fmt.Fprintf(w, "Recovery: %s\n", v.Recovery)
+		if len(v.Generator) != 0 {
+			fmt.Fprintln(w, "Update the GRUB menu with the installed kernels.")
+		}
+		if !v.Applicable {
+			fmt.Fprintln(w, "Cannot apply:", v.Reason)
+			return
+		}
+		fmt.Fprintf(w, "\nApply this plan:\n  grubmgr apply %s\n", v.ID)
 	default:
 		_ = output.Write(w, value)
 	}
+}
+
+func display(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
 }
