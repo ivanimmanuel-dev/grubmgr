@@ -14,9 +14,6 @@ test -x /usr/bin/grubmgr
 test -x /usr/libexec/grubmgr-helper
 if test "${1:-}" = prepare; then
 test ! -e /etc/polkit-1/rules.d/49-grubmgr-vm.rules
-install -d -m 0755 /etc/grubmgr
-printf 'grubmgr disposable VM v1\n' > /etc/grubmgr/vm-test
-chmod 0644 /etc/grubmgr/vm-test
 python3 - <<'PY'
 import os, pathlib, pwd, secrets, subprocess
 secret = secrets.token_urlsafe(24)

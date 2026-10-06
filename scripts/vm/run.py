@@ -45,6 +45,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--tools-root', type=pathlib.Path, default=pathlib.Path('/'))
     parser.add_argument('--go', default='go')
+    parser.add_argument('--accel', choices=['tcg', 'kvm'], default='tcg')
     parser.add_argument('--deb', type=pathlib.Path, help='Use this frozen .deb and its adjacent .manifest.json')
     args = parser.parse_args()
     if os.name != 'posix' or os.geteuid() == 0:
@@ -96,6 +97,7 @@ def main():
     # Runtime secrets/sockets stay on a native Linux filesystem, including in WSL.
     with tempfile.TemporaryDirectory(prefix='grubmgr-vm-') as runtime_dir:
         runtime = pathlib.Path(runtime_dir)
+        disk = runtime/'disk.qcow2'
         key = runtime/'key'
         subprocess.run(['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(key)], check=True)
         public = key.with_suffix('.pub').read_text().strip()
@@ -120,16 +122,17 @@ packages: [pkexec, polkitd, desktop-base, fonts-unifont, grub-efi-amd64-bin, gru
         def local(argv):
             return subprocess.run([str(x) for x in argv], check=True, env=env, cwd=ROOT)
         local([bins['genisoimage'], '-quiet', '-output', run/'seed.iso', '-volid', 'cidata', '-joliet', '-rock', run/'user-data', run/'meta-data'])
-        local([bins['qemu-img'], 'create', '-f', 'qcow2', '-F', 'qcow2', '-b', image, run/'disk.qcow2', '16G'])
+        local([bins['qemu-img'], 'create', '-f', 'qcow2', '-F', 'qcow2', '-b', image, disk, '16G'])
         shutil.copyfile(firmware/'OVMF_VARS_4M.fd', run/'vars.fd')
         with socket.socket() as s:
             s.bind(('127.0.0.1', 0))
             port = s.getsockname()[1]
-        qemu = [bins['qemu-system-x86_64'], '-machine', 'q35,smm=on', '-accel', 'tcg,thread=multi', '-smp', '2', '-m', '2048',
+        accelerator = 'kvm' if args.accel == 'kvm' else 'tcg,thread=multi'
+        qemu = [bins['qemu-system-x86_64'], '-machine', 'q35,smm=on', '-accel', accelerator, '-smp', '2', '-m', '2048',
                 '-L', tools/'usr/share/qemu', '-smbios', 'type=1,product=grubmgr-disposable-v1',
                 '-drive', f'if=pflash,format=raw,readonly=on,file={firmware}/OVMF_CODE_4M.secboot.fd',
                 '-drive', f'if=pflash,format=raw,file={run}/vars.fd',
-                '-drive', f'if=virtio,format=qcow2,file={run}/disk.qcow2',
+                '-drive', f'if=virtio,format=qcow2,file={disk}',
                 '-drive', f'if=virtio,format=raw,readonly=on,file={run}/seed.iso',
                 '-netdev', f'user,id=net0,hostfwd=tcp:127.0.0.1:{port}-:22', '-device', 'virtio-net-pci,netdev=net0,romfile=',
                 '-device', f'VGA,romfile={tools}/usr/share/seabios/vgabios-stdvga.bin',
@@ -196,6 +199,8 @@ packages: [pkexec, polkitd, desktop-base, fonts-unifont, grub-efi-amd64-bin, gru
             flow('activate');reboot();flow('after-activation-boot')
             ssh('sudo apt-get install -y --no-install-recommends linux-image-amd64 > /home/tester/grubmgr-test/evidence/kernel-install.log 2>&1')
             flow('rollback');reboot();flow('after-rollback-boot')
+            flow('community-activate');reboot();flow('after-community-boot')
+            flow('community-rollback');reboot();flow('after-community-rollback-boot')
             ssh('sudo /home/tester/grubmgr-test/grubmgr-vm-tests -test.v -test.timeout=30m > /home/tester/grubmgr-test/evidence/failures.log 2>&1')
             ssh('sudo python3 -m venv /usr/local/lib/grub2-theme-preview && sudo /usr/local/lib/grub2-theme-preview/bin/pip install grub2-theme-preview==2.10.0 > /home/tester/grubmgr-test/evidence/preview-install.log 2>&1 && sudo ln -s /usr/local/lib/grub2-theme-preview/bin/grub2-theme-preview /usr/local/bin/grub2-theme-preview')
             flow('starfield');reboot();flow('after-starfield-boot')

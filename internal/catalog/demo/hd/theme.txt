@@ -1,4 +1,5 @@
-title-text: "GRUB Manager HD synthetic demo"
+title-text: "Cyberpunk Demo HD"
+title-color: "#ffffff"
 desktop-color: "#181828"
 + boot_menu {
   left = 20%

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"unicode"
 )
 
 type File struct {
@@ -54,6 +55,7 @@ type Recipe struct {
 	ArtifactSHA256 string        `json:"artifact_sha256,omitempty"`
 	Root           string        `json:"theme_root"`
 	Entry          string        `json:"entry"`
+	Include        []string      `json:"include,omitempty"`
 	Variants       []Variant     `json:"variants"`
 	License        License       `json:"license"`
 	Compatibility  Compatibility `json:"compatibility"`
@@ -101,6 +103,33 @@ func (r Recipe) Check() error {
 	}
 	if r.ArtifactSHA256 != "" && !IsDigest(r.ArtifactSHA256) {
 		return fmt.Errorf("artifact_sha256 must be a lowercase SHA-256 digest")
+	}
+	values := []string{r.ID, r.Name, r.Author, r.ProjectURL, r.Version, r.RecipeRevision, r.Root, r.Entry, r.Source.Provider, r.Source.URL, r.Source.UpstreamRevision, r.License.SPDX, r.License.Evidence, r.Preview.Kind, r.Preview.Source, r.Preview.Attribution}
+	for _, list := range [][]string{r.Include, r.License.Notices, r.Compatibility.Backends, r.Compatibility.Requires, r.Compatibility.Architectures, r.Compatibility.Firmware, r.Compatibility.Notes} {
+		if len(list) > 128 {
+			return fmt.Errorf("recipe metadata list exceeds its limit")
+		}
+		values = append(values, list...)
+	}
+	for _, variant := range r.Variants {
+		if len(variant.Resolutions) > 64 {
+			return fmt.Errorf("variant resolution list exceeds its limit")
+		}
+		values = append(values, variant.ID, variant.Root, variant.Entry)
+		values = append(values, variant.Resolutions...)
+	}
+	for _, value := range values {
+		if len(value) > 16384 {
+			return fmt.Errorf("recipe metadata exceeds 16 KiB per field")
+		}
+		for _, c := range value {
+			if unicode.IsControl(c) {
+				return fmt.Errorf("recipe metadata contains a control character")
+			}
+		}
+	}
+	if len(r.Variants) > 64 || len(r.Include) > 128 || len(r.License.Notices) > 128 || len(r.Compatibility.Backends) > 64 || len(r.Compatibility.Requires) > 64 {
+		return fmt.Errorf("recipe metadata list exceeds its limit")
 	}
 	return nil
 }

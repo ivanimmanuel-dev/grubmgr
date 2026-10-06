@@ -8,12 +8,12 @@ import (
 	"strings"
 )
 
-// A profile fixes the distro identity, GRUB version, tools and boot layout.
+// A profile selects distro tools and records the detected GRUB and boot layout.
 type profile struct {
-	ID, Version, Backend, PackageManager, GRUBVersion string
-	Generator, Probe, Library                         string
-	SeparateBoot                                      bool
-	RootFS, EFIMount                                  string
+	ID, Version, Backend, PackageManager string
+	Generator, Probe, Library            string
+	SeparateBoot                         bool
+	RootFS                               string
 }
 
 func installedVersions(r *os.Root, p profile) (map[string]string, []string, error) {
@@ -88,10 +88,66 @@ func standardPacmanConfig(conf []byte) error {
 }
 
 var profiles = []profile{
-	{"debian", "13", "debian13-uefi-vm", "dpkg", "2.12-9+deb13u2", "usr/sbin/grub-mkconfig", "usr/sbin/grub-probe", "usr/share/grub/grub-mkconfig_lib", false, "ext4", "/boot/efi"},
-	{"ubuntu", "24.04", "ubuntu2404-uefi-vm", "dpkg", "2.12-1ubuntu7.3", "usr/sbin/grub-mkconfig", "usr/sbin/grub-probe", "usr/share/grub/grub-mkconfig_lib", true, "ext4", "/boot/efi"},
-	{"arch", "", "arch-uefi-vm", "pacman", "2:2.16-1", "usr/bin/grub-mkconfig", "usr/bin/grub-probe", "usr/share/grub/grub-mkconfig_lib", false, "btrfs", "/efi"},
-	{"kali", "", "kali-rolling-uefi-vm", "dpkg", "2.14-2+kali1", "usr/sbin/grub-mkconfig", "usr/sbin/grub-probe", "usr/share/grub/grub-mkconfig_lib", false, "ext4", "/boot/efi"},
+	{ID: "debian", Version: "13", Backend: "debian-grub", PackageManager: "dpkg", Generator: "usr/sbin/grub-mkconfig", Probe: "usr/sbin/grub-probe", Library: "usr/share/grub/grub-mkconfig_lib"},
+	{ID: "ubuntu", Version: "24.04", Backend: "ubuntu-grub", PackageManager: "dpkg", Generator: "usr/sbin/grub-mkconfig", Probe: "usr/sbin/grub-probe", Library: "usr/share/grub/grub-mkconfig_lib"},
+	{ID: "arch", Backend: "arch-grub", PackageManager: "pacman", Generator: "usr/bin/grub-mkconfig", Probe: "usr/bin/grub-probe", Library: "usr/share/grub/grub-mkconfig_lib"},
+	{ID: "kali", Backend: "kali-grub", PackageManager: "dpkg", Generator: "usr/sbin/grub-mkconfig", Probe: "usr/sbin/grub-probe", Library: "usr/share/grub/grub-mkconfig_lib"},
+}
+
+func grub2Version(version string) bool {
+	if _, rest, found := strings.Cut(version, ":"); found {
+		version = rest
+	}
+	return strings.HasPrefix(version, "2.") && len(version) > 2 && version[2] >= '0' && version[2] <= '9'
+}
+
+// bootLayout derives mount information instead of requiring a test image layout.
+func bootLayout(mounts string, p profile) (profile, error) {
+	rootOK := false
+	for _, line := range strings.Split(mounts, "\n") {
+		leftText, rightText, found := strings.Cut(line, " - ")
+		if !found {
+			continue
+		}
+		left, right := strings.Fields(leftText), strings.Fields(rightText)
+		if len(left) < 6 || len(right) < 3 {
+			continue
+		}
+		if left[4] == "/" || left[4] == "/boot" || left[4] == "/boot/grub" || strings.HasPrefix(left[4], "/boot/grub/") {
+			if !strings.Contains(","+left[5]+",", ",rw,") || right[0] != "ext4" && right[0] != "btrfs" {
+				return p, fmt.Errorf("/%s requires a writable ext4 or Btrfs filesystem", strings.TrimPrefix(left[4], "/"))
+			}
+			if left[4] == "/" {
+				p.RootFS, rootOK = right[0], true
+			} else if left[4] == "/boot" {
+				p.SeparateBoot = true
+			}
+		}
+	}
+	if !rootOK {
+		return p, fmt.Errorf("cannot establish the root filesystem")
+	}
+	return p, nil
+}
+
+func bootMountEvidence(mounts string) string {
+	var relevant []string
+	for _, line := range strings.Split(mounts, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 6 && (fields[4] == "/" || fields[4] == "/boot" || fields[4] == "/boot/grub" || strings.HasPrefix(fields[4], "/boot/grub/")) {
+			relevant = append(relevant, line)
+		}
+	}
+	return strings.Join(relevant, "\n")
+}
+
+func compatibleBackend(declared, actual string) bool {
+	if declared == actual || declared == "linux-grub" {
+		return true
+	}
+	// Receipts from 0.3 keep their immutable metadata during an upgrade.
+	legacy := map[string]string{"debian13-uefi-vm": "debian-grub", "ubuntu2404-uefi-vm": "ubuntu-grub", "kali-rolling-uefi-vm": "kali-grub", "arch-uefi-vm": "arch-grub"}
+	return legacy[declared] == actual
 }
 
 func selectProfile(release []byte) (profile, error) {

@@ -56,7 +56,7 @@ def image_for(name, tools, env):
 
 
 class Machine:
-    def __init__(self, name, tools, run, packages):
+    def __init__(self, name, tools, run, packages, accel='tcg'):
         if os.name != 'posix' or os.geteuid() == 0:
             raise RuntimeError('Run as an ordinary Linux user')
         self.name, self.tools, self.run = name, pathlib.Path(tools).resolve(), pathlib.Path(run).resolve()
@@ -64,6 +64,7 @@ class Machine:
         if str(self.tools) != '/': self.env['LD_LIBRARY_PATH'] = str(self.tools/'usr/lib/x86_64-linux-gnu')
         self.image = image_for(name, self.tools, self.env)
         self.packages, self.proc = packages, None
+        self.accel = 'kvm' if accel == 'kvm' else 'tcg,thread=multi'
 
     def __enter__(self):
         self.runtime = tempfile.TemporaryDirectory(prefix='grubmgr-matrix-')
@@ -87,7 +88,7 @@ class Machine:
         self.local('qemu-img', 'create', '-f', 'qcow2', '-F', 'qcow2', '-b', self.image, self.disk, '30G')
         fw = self.tools/'usr/share/OVMF'; shutil.copyfile(fw/'OVMF_VARS_4M.fd', self.run/'vars.fd')
         with socket.socket() as s: s.bind(('127.0.0.1', 0)); self.port = s.getsockname()[1]
-        argv = [self.tools/'usr/bin/qemu-system-x86_64', '-machine', 'q35,smm=on', '-accel', 'tcg,thread=multi', '-smp', '2', '-m', '2048',
+        argv = [self.tools/'usr/bin/qemu-system-x86_64', '-machine', 'q35,smm=on', '-accel', self.accel, '-smp', '2', '-m', '2048',
                 '-L', self.tools/'usr/share/qemu', '-smbios', 'type=1,product=grubmgr-disposable-v1',
                 '-drive', f'if=pflash,format=raw,readonly=on,file={fw}/OVMF_CODE_4M.secboot.fd',
                 '-drive', f'if=pflash,format=raw,file={self.run}/vars.fd',
@@ -157,7 +158,6 @@ class Machine:
                 except subprocess.TimeoutExpired: self.proc.kill(); self.proc.wait()
         try:
             if self.disk.exists():
-                shutil.copyfile(self.disk, self.run/'disk.qcow2')
                 self.disk.unlink()
             self.disk_dir.rmdir()
         except OSError as error:

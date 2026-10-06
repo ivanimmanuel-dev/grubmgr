@@ -55,14 +55,13 @@ def attempt(case):
                     scanned = len(output)
                     if case == 'cancel' or prompts > 1:
                         os.write(fd, b'\x03')
-                    elif case == 'wrong-password':
-                        os.write(fd, b'grubmgr-intentionally-wrong\n')
                     else:
                         echo_deadline = time.monotonic()+2
                         while termios.tcgetattr(fd)[3] & termios.ECHO and time.monotonic() < echo_deadline:
                             time.sleep(0.02)
                         assert not termios.tcgetattr(fd)[3] & termios.ECHO, 'Password input still echoes'
-                        os.write(fd, secret+b'\n')
+                        password = b'grubmgr-intentionally-wrong' if case == 'wrong-password' else secret
+                        os.write(fd, password+b'\n')
             if status is None:
                 done, status_value = os.waitpid(pid, os.WNOHANG)
                 if done:
@@ -74,6 +73,8 @@ def attempt(case):
             else:
                 os.kill(pid, signal.SIGKILL)
                 _, status = os.waitpid(pid, 0)
+                transcript = bytes(output).replace(secret, b'[REDACTED]').decode(errors='replace')
+                (base/'evidence'/('auth-'+case+'.log')).write_text(transcript)
                 raise RuntimeError('authentication test timed out: '+case)
     finally:
         os.close(fd)
@@ -83,9 +84,9 @@ def attempt(case):
     assert prompts >= 1, transcript
     assert 'io.github.ivanimmanuel.grubmgr.manage' in transcript, transcript
     if case == 'accepted':
-        assert code == 0 and 'SUPPORTED WITH WARNINGS' in transcript, transcript
+        assert code == 0 and 'SUPPORTED' in transcript, transcript
     else:
-        assert code != 0 and 'SUPPORTED WITH WARNINGS' not in transcript, transcript
+        assert code != 0 and 'SUPPORTED' not in transcript, transcript
     assert fingerprint() == before
     return {'case': case, 'exit': code, 'password_prompts': prompts, 'boot_files_unchanged': True}
 

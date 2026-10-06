@@ -7,11 +7,11 @@
       "name": "Cyberpunk Demo",
       "author": "GRUB Manager contributors",
       "project_url": "",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "source": {
         "provider": "builtin",
         "url": "builtin:cyberpunk-demo",
-        "upstream_revision": "synthetic-v1"
+        "upstream_revision": "demo-v1.0.1"
       },
       "theme_root": ".",
       "entry": "theme.txt",
@@ -36,10 +36,10 @@
       "compatibility": {
         "backends": [
           "fixture-debian",
-          "debian13-uefi-vm",
-          "ubuntu2404-uefi-vm",
-          "kali-rolling-uefi-vm",
-          "arch-uefi-vm"
+          "debian-grub",
+          "ubuntu-grub",
+          "kali-grub",
+          "arch-grub"
         ],
         "requires": [
           "gfxterm"
@@ -48,7 +48,7 @@
       "preview": {
         "kind": "none"
       },
-      "recipe_revision": "3",
+      "recipe_revision": "5",
       "reviewed": true
     }
   },
@@ -85,7 +85,7 @@
       },
       "compatibility": {
         "backends": [
-          "debian13-uefi-vm"
+          "debian-grub"
         ],
         "architectures": [
           "amd64"
@@ -103,7 +103,7 @@
       "preview": {
         "kind": "grub-qemu"
       },
-      "recipe_revision": "1",
+      "recipe_revision": "2",
       "reviewed": true
     }
   }

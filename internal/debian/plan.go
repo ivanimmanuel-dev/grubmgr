@@ -65,7 +65,7 @@ func build(root string, req planner.Request, bundle *Bundle) (planner.Plan, erro
 			}
 		}
 		if !found {
-			packages = append(packages, model.Package{Manifest: bundle.Manifest, Variant: "default", Validation: model.Validation{Valid: true, Validator: "grubmgr-helper/content-pin", Findings: []model.Finding{}}})
+			packages = append(packages, model.Package{Manifest: bundle.Manifest, Variant: "default", Validation: model.Validation{Valid: true, Validator: "grubmgr-helper/package-identity", Findings: []model.Finding{}}})
 		}
 	}
 	sort.Slice(packages, func(i, j int) bool { return packages[i].Manifest.Revision < packages[j].Manifest.Revision })
@@ -79,6 +79,11 @@ func build(root string, req planner.Request, bundle *Bundle) (planner.Plan, erro
 		return pl, err
 	}
 	cfg, err := fsx.Read(r, Config, 8<<20)
+	if err != nil {
+		return pl, err
+	}
+	beforeTheme, _ := themeValue(defaults)
+	packages, err = activePackages(packages, beforeTheme)
 	if err != nil {
 		return pl, err
 	}
@@ -115,7 +120,13 @@ func build(root string, req planner.Request, bundle *Bundle) (planner.Plan, erro
 		if !have {
 			old, _ := themeValue(prior.Before.Defaults)
 			if old != "" {
-				return pl, fmt.Errorf("prior unmanaged theme cannot be verified for rollback")
+				if prior.Before.OriginalTheme == nil {
+					return pl, fmt.Errorf("this older transaction has no previous theme backup")
+				}
+				if err := verifyOriginal(*prior.Before.OriginalTheme); err != nil {
+					return pl, err
+				}
+				pl.AfterTheme = path.Join(originalDestination(*prior.Before.OriginalTheme), prior.Before.OriginalTheme.Entry)
 			}
 		}
 	} else {
@@ -126,14 +137,33 @@ func build(root string, req planner.Request, bundle *Bundle) (planner.Plan, erro
 	}
 	if have {
 		m := selected.Manifest
-		compatible := false
+		compatible := len(m.Compatibility.Backends) == 0
 		for _, backend := range m.Compatibility.Backends {
-			if backend == env.Backend {
+			if compatibleBackend(backend, env.Backend) {
 				compatible = true
 			}
 		}
 		if !compatible {
 			return pl, fmt.Errorf("recipe does not permit %s", env.Backend)
+		}
+		for _, constraint := range []struct {
+			allowed []string
+			actual  string
+		}{
+			{m.Compatibility.Architectures, "amd64"}, {m.Compatibility.Firmware, "uefi"},
+		} {
+			if len(constraint.allowed) == 0 {
+				continue
+			}
+			matched := false
+			for _, value := range constraint.allowed {
+				if value == constraint.actual {
+					matched = true
+				}
+			}
+			if !matched {
+				return pl, fmt.Errorf("theme does not support %s", constraint.actual)
+			}
 		}
 		if bundle != nil && bundle.Manifest.Revision != m.Revision {
 			return pl, fmt.Errorf("supplied package does not match plan target")
@@ -181,6 +211,26 @@ func build(root string, req planner.Request, bundle *Bundle) (planner.Plan, erro
 		pl.Retained = append(pl.Retained, pl.Destination)
 	}
 	if pl.AfterTheme != pl.BeforeTheme {
+		managed := false
+		for _, pkg := range packages {
+			if !pkg.Installed {
+				continue
+			}
+			v, err := pkg.Manifest.Variant(pkg.Variant)
+			if err != nil {
+				return pl, err
+			}
+			if path.Join("/boot/grub/themes/grubmgr", pkg.Manifest.ID, pkg.Manifest.Revision, v.Root, v.Entry) == pl.BeforeTheme {
+				managed = true
+			}
+		}
+		if pl.BeforeTheme != "" && !managed {
+			pl.Before.OriginalTheme, err = originalSnapshot(root, pl.BeforeTheme)
+			if err != nil {
+				return pl, err
+			}
+			pl.ThemeBackup = originalDestination(*pl.Before.OriginalTheme)
+		}
 		after, err := settings(defaults, pl.AfterTheme)
 		if err != nil {
 			return pl, err
@@ -202,4 +252,16 @@ func build(root string, req planner.Request, bundle *Bundle) (planner.Plan, erro
 	pl.Validation = "package identity verified; candidate checked during apply"
 	pl.Reason = env.Reason
 	return pl, nil
+}
+
+func activePackages(packages []model.Package, theme string) ([]model.Package, error) {
+	for i := range packages {
+		pkg := &packages[i]
+		variant, err := pkg.Manifest.Variant(pkg.Variant)
+		if err != nil {
+			return nil, err
+		}
+		pkg.Active = pkg.Installed && path.Join("/boot/grub/themes/grubmgr", pkg.Manifest.ID, pkg.Manifest.Revision, variant.Root, variant.Entry) == theme
+	}
+	return packages, nil
 }

@@ -5,6 +5,7 @@ package debian
 import (
 	"context"
 	"fmt"
+	"golang.org/x/sys/unix"
 	"io"
 	"os"
 	"os/exec"
@@ -24,6 +25,11 @@ func terminalAgent(ctx context.Context) (func(), error) {
 	if err = secure("/usr/bin/pkttyagent", false); err != nil {
 		tty.Close()
 		return nil, fmt.Errorf("terminal authentication agent unavailable: %w", err)
+	}
+	terminal, err := unix.IoctlGetTermios(int(tty.Fd()), unix.TCGETS)
+	if err != nil {
+		tty.Close()
+		return nil, err
 	}
 	stat, err := os.ReadFile("/proc/self/stat")
 	fields := strings.Fields(string(stat)[strings.LastIndex(string(stat), ")")+1:])
@@ -61,6 +67,7 @@ func terminalAgent(ctx context.Context) (func(), error) {
 		_ = cmd.Process.Kill()
 		<-done
 		reader.Close()
+		_ = unix.IoctlSetTermios(int(tty.Fd()), unix.TCSETS, terminal)
 		tty.Close()
 	}
 	ready := make(chan error, 1)

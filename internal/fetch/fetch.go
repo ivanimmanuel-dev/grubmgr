@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -52,7 +53,22 @@ func Infer(dir, origin string) (model.Recipe, error) {
 	if len(roots) != 1 {
 		return model.Recipe{}, output.Fail(output.Invalid, "AMBIGUOUS_THEME_ROOT", "found %d theme.txt files; supply an explicit --recipe", len(roots))
 	}
-	return model.Recipe{Schema: 1, ID: "local/import-" + model.Hash([]byte(origin))[:12], Name: "Local imported theme", Author: "unknown", Version: "local", Source: model.Source{Provider: "local", URL: origin, UpstreamRevision: "content-addressed"}, Root: roots[0], Entry: "theme.txt", RecipeRevision: "local-1", Preview: model.Preview{Kind: "none"}}, nil
+	name := filepath.Base(origin)
+	for _, suffix := range []string{".tar.gz", ".tgz", ".zip", ".tar"} {
+		if strings.HasSuffix(strings.ToLower(name), suffix) {
+			name = name[:len(name)-len(suffix)]
+			break
+		}
+	}
+	slug := strings.Trim(regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(strings.ToLower(name), "-"), "-")
+	if len(slug) > 40 {
+		slug = strings.TrimRight(slug[:40], "-")
+	}
+	if slug == "" {
+		slug = "theme"
+	}
+	recipe := model.Recipe{Schema: 1, ID: "local/" + slug + "-" + model.Hash([]byte(origin))[:8], Name: name, Author: "Unknown", Version: "local", Source: model.Source{Provider: "local", URL: origin, UpstreamRevision: "content-addressed"}, Root: roots[0], Entry: "theme.txt", RecipeRevision: "local-1", Preview: model.Preview{Kind: "none"}}
+	return recipe, recipe.Check()
 }
 func Download(raw, dest, expected string) error {
 	return downloadWithClient(raw, dest, expected, &http.Client{Timeout: 60 * time.Second})
@@ -90,6 +106,10 @@ func downloadWithClient(raw, dest, expected string, base *http.Client) error {
 	return os.WriteFile(dest, b, 0600)
 }
 func Import(p system.Paths, source, recipeFile string) (model.Package, error) {
+	return importWithClient(p, source, recipeFile, &http.Client{Timeout: 60 * time.Second})
+}
+
+func importWithClient(p system.Paths, source, recipeFile string, client *http.Client) (model.Package, error) {
 	var result model.Package
 	var recipe model.Recipe
 	var e error
@@ -100,7 +120,7 @@ func Import(p system.Paths, source, recipeFile string) (model.Package, error) {
 		if e != nil {
 			return result, e
 		}
-	} else if entry, err := catalog.Find(source); err == nil {
+	} else if entry, err := catalog.FindConfigured(p.Config, source); err == nil {
 		if !entry.Recipe.Reviewed {
 			return result, output.Fail(output.Unsupported, "BROWSE_ONLY", "%s has no reviewed package recipe", source)
 		}
@@ -147,7 +167,7 @@ func Import(p system.Paths, source, recipeFile string) (model.Package, error) {
 	case remote:
 		u, _ := url.Parse(source)
 		artifactFile := filepath.Join(temp, filepath.Base(u.Path))
-		if e = Download(source, artifactFile, recipe.ArtifactSHA256); e != nil {
+		if e = downloadWithClient(source, artifactFile, recipe.ArtifactSHA256, client); e != nil {
 			return result, e
 		}
 		artifact = recipe.ArtifactSHA256
@@ -189,6 +209,9 @@ func Import(p system.Paths, source, recipeFile string) (model.Package, error) {
 				return result, e
 			}
 		}
+	}
+	if e = selectFiles(content, recipe); e != nil {
+		return result, e
 	}
 	files, tree, e := fsx.Inventory(content)
 	if e != nil {

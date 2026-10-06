@@ -274,7 +274,7 @@ func TestHardlinkCannotMutateOutside(t *testing.T) {
 		t.Fatal("outside hardlink changed")
 	}
 }
-func TestTamperedCacheAndUnreviewed(t *testing.T) {
+func TestTamperedCacheAndLocalTheme(t *testing.T) {
 	p := testutil.Root(t, "debian")
 	pkg := fetchDemo(t, p)
 	testutil.Write(t, state.Content(p, pkg.Manifest.Revision), "theme.txt", []byte("title-text: \"altered\"\n"))
@@ -287,8 +287,16 @@ func TestTamperedCacheAndUnreviewed(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if _, e = planner.Build(p, planner.Request{Action: "install", Target: local.Manifest.ID}); e == nil {
-		t.Fatal("unknown license planned")
+	pl, e := planner.Build(p, planner.Request{Action: "install", Target: local.Manifest.ID})
+	if e != nil || !pl.Applicable {
+		t.Fatal("validated local theme cannot be installed", pl, e)
+	}
+	if _, e = Apply(p, pl.ID, Faults{}); e != nil {
+		t.Fatal(e)
+	}
+	apply(t, p, "switch", local.Manifest.ID, "")
+	if !strings.Contains(string(testutil.Read(t, p.Root, backend.Defaults)), local.Manifest.Revision) {
+		t.Fatal("local theme was not selected")
 	}
 }
 func TestImmutableRevisionsNeedSelection(t *testing.T) {

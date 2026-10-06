@@ -212,7 +212,7 @@ func Inspect(p Paths) (Report, error) {
 		q.Reason = "GRUB and another bootloader have configuration evidence"
 	} else if q.GRUBInstalled {
 		q.Status = "read-only"
-		q.Reason = "Activation requires a tested disposable VM profile"
+		q.Reason = "Install the Linux package to enable system activation"
 		switch q.Distribution {
 		case "debian", "ubuntu", "kali":
 			if q.Configs[0] == "/boot/grub/grub.cfg" && q.Defaults != "" && q.Utilities["grub-mkconfig"] != "" {
@@ -244,7 +244,7 @@ func Inspect(p Paths) (Report, error) {
 		} else {
 			q.Status = "UNSUPPORTED"
 		}
-		q.Reason = "Activation requires a supported disposable Linux VM"
+		q.Reason = "Activation requires the installed helper on a supported Linux GRUB configuration"
 	}
 	return q, nil
 }

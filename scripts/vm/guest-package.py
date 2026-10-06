@@ -58,8 +58,6 @@ if stage == 'install':
     installed()
     assert boot_files() == before
     assert not pathlib.Path('/etc/grubmgr/vm-test').exists()
-    report = command('runuser', '-u', 'tester', '--', '/usr/bin/grubmgr', '--json', 'doctor')
-    assert 'UNSUPPORTED' in report, report
 elif stage == 'lifecycle':
     install()
     installed()

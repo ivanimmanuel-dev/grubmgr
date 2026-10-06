@@ -87,3 +87,19 @@ func TestTokenRejectsTrailingData(t *testing.T) {
 		t.Fatal("accepted trailing data")
 	}
 }
+
+func TestLocalBundlePreservesContentChecks(t *testing.T) {
+	b := demoBundle(t)
+	b.Manifest.ID = "community/local-theme"
+	b.Manifest.Source = model.Source{Provider: "local", URL: "/tmp/theme"}
+	b.Manifest.Reviewed = false
+	b.Manifest.License.Verified = false
+	b.Manifest.Revision = b.Manifest.Identity()
+	if err := CheckBundle(b); err != nil {
+		t.Fatal("validated local import rejected", err)
+	}
+	b.Files["theme.txt"] = []byte("title-text: \"edited after import\"\n")
+	if err := CheckBundle(b); err == nil {
+		t.Fatal("local content substitution accepted")
+	}
+}

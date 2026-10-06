@@ -1,4 +1,4 @@
-// Package debian implements the shared, VM-only Linux GRUB activation service.
+// Package debian implements the shared Linux GRUB activation service.
 package debian
 
 import (
@@ -128,22 +128,25 @@ func LoadBundle(p system.Paths, target string) (*Bundle, error) {
 	return b, CheckBundle(b)
 }
 
-// CheckBundle verifies the recipe against the compiled catalog and checks each
-// file against its inventory entry and approved content pin.
+// CheckBundle verifies immutable theme data. Bundled catalog entries retain
+// their content pins; other imports are validated independently by the helper.
 func CheckBundle(b *Bundle) error {
 	if b == nil {
 		return nil
 	}
 	m := b.Manifest
-	if m.Recipe.Check() != nil || !model.IsDigest(m.Revision) || m.Identity() != m.Revision {
+	if m.Recipe.Check() != nil || !model.IsDigest(m.Revision) || !model.IsDigest(m.TreeSHA256) || !model.IsDigest(m.ArtifactSHA256) || m.Identity() != m.Revision {
 		return fmt.Errorf("invalid package identity")
 	}
 	entry, err := catalog.Find(m.ID)
-	if entry.Recipe.Source.Provider == "builtin" && entry.Recipe.ArtifactSHA256 == "" && m.ArtifactSHA256 == m.TreeSHA256 {
+	if err == nil && entry.Recipe.Source.Provider == "builtin" && entry.Recipe.ArtifactSHA256 == "" && m.ArtifactSHA256 == m.TreeSHA256 {
 		entry.Recipe.ArtifactSHA256 = m.ArtifactSHA256
 	}
-	if err != nil || !entry.Recipe.Reviewed || !entry.Recipe.License.Verified || model.Digest(entry.Recipe) != model.Digest(m.Recipe) {
+	if err == nil && model.Digest(entry.Recipe) != model.Digest(m.Recipe) {
 		return fmt.Errorf("package recipe is not approved by this helper build")
+	}
+	if err != nil && (m.Source.Provider == "builtin" || m.Source.Provider == "debian-installed") {
+		return fmt.Errorf("unknown bundled source")
 	}
 	if len(b.Files) == 0 || len(b.Files) > fsx.MaxMembers || len(b.Files) != len(m.Files) {
 		return fmt.Errorf("invalid package inventory size")
@@ -176,7 +179,7 @@ func CheckBundle(b *Bundle) error {
 				return fmt.Errorf("builtin package content changed")
 			}
 		}
-	} else if entry.TreeSHA256 == "" || m.TreeSHA256 != entry.TreeSHA256 {
+	} else if err == nil && (entry.TreeSHA256 == "" || m.TreeSHA256 != entry.TreeSHA256) {
 		return fmt.Errorf("package tree is not pinned by the installed catalog")
 	}
 	return nil

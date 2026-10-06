@@ -29,6 +29,7 @@ def main():
     parser.add_argument('--package', required=True, type=pathlib.Path)
     parser.add_argument('--tools-root', default='/', type=pathlib.Path)
     parser.add_argument('--go', default='go')
+    parser.add_argument('--accel', choices=['tcg', 'kvm'], default='tcg')
     args = parser.parse_args()
     if os.name != 'posix' or os.geteuid() == 0: raise SystemExit('Run as an ordinary Linux user')
     runs = ROOT/'work/vm-runs'; runs.mkdir(parents=True, exist_ok=True)
@@ -45,7 +46,7 @@ def main():
     for name in scripts: shutil.copyfile(ROOT/'scripts/vm'/name, run/name)
     frozen = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in run.iterdir() if p.is_file()}
     (run/'inputs.json').write_text(json.dumps(frozen, indent=2)+'\n')
-    with Machine(args.target, args.tools_root, run, PACKAGES[args.target]) as vm:
+    with Machine(args.target, args.tools_root, run, PACKAGES[args.target], args.accel) as vm:
         if args.target == 'arch':
             # The full update replaces the running kernel and installs Polkit's
             # statically enabled socket. Start from a normal boot of that state.
@@ -75,6 +76,8 @@ def main():
         print('VM stage: second kernel installation', flush=True)
         vm.ssh(KERNEL[args.target]+' > /home/tester/grubmgr-test/evidence/kernel-install.log 2>&1')
         flow('rollback'); vm.reboot(); flow('after-rollback-boot')
+        flow('community-activate'); vm.reboot(); flow('after-community-boot')
+        flow('community-rollback'); vm.reboot(); flow('after-community-rollback-boot')
         print('VM stage: transaction failures and locks', flush=True)
         vm.ssh('sudo /home/tester/grubmgr-test/grubmgr-vm-tests -test.v -test.timeout=45m > /home/tester/grubmgr-test/evidence/failures.log 2>&1')
         vm.ssh('sudo python3 -m venv /usr/local/lib/grub2-theme-preview && sudo /usr/local/lib/grub2-theme-preview/bin/pip install grub2-theme-preview==2.10.0 > /home/tester/grubmgr-test/evidence/preview-install.log 2>&1 && sudo ln -s /usr/local/lib/grub2-theme-preview/bin/grub2-theme-preview /usr/local/bin/grub2-theme-preview')

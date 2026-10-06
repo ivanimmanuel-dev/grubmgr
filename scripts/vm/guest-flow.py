@@ -55,6 +55,30 @@ elif stage=='rollback':
     (base/'rollback-kernels.json').write_text(json.dumps(kernel_files));record('rolled-back')
 elif stage=='after-rollback-boot':
     record('rollback-reboot');assert json.loads((base/'rolled-back.json').read_text())['boot_id']!=json.loads((base/'rollback-reboot.json').read_text())['boot_id']
+elif stage=='community-activate':
+    assert not pathlib.Path('/etc/grubmgr/vm-test').exists()
+    demo=next(p for p in run('list') if p['manifest']['id']=='grubmgr/cyberpunk-demo')
+    source=pathlib.Path.home()/'.local/share/grubmgr/packages'/demo['manifest']['revision']/'content'
+    directory=pathlib.Path('/home/tester/grubmgr-test/community-theme');directory.mkdir()
+    for name in ['theme.txt','LICENSE']:(directory/name).write_bytes((source/name).read_bytes())
+    run('--yes','install',str(directory))
+    imported=next(p for p in run('list') if p['manifest']['source']['url']==str(directory))
+    assert not imported['manifest']['reviewed']
+    result=run('--yes','switch',imported['manifest']['id'])
+    (base/'community-rollback-target.txt').write_text(result['transaction'])
+    (base/'community-revision.txt').write_text(imported['manifest']['revision'])
+    record('community-activated')
+elif stage=='after-community-boot':
+    record('community-reboot')
+    assert json.loads((base/'community-activated.json').read_text())['boot_id']!=json.loads((base/'community-reboot.json').read_text())['boot_id']
+    assert (base/'community-revision.txt').read_text() in pathlib.Path('/etc/default/grub').read_text()
+elif stage=='community-rollback':
+    run('--yes','rollback',(base/'community-rollback-target.txt').read_text())
+    record('community-rolled-back')
+elif stage=='after-community-rollback-boot':
+    record('community-rollback-reboot')
+    assert json.loads((base/'community-rolled-back.json').read_text())['boot_id']!=json.loads((base/'community-rollback-reboot.json').read_text())['boot_id']
+    assert '/grubmgr/cyberpunk-demo/' in pathlib.Path('/etc/default/grub').read_text()
 elif stage=='starfield':
     run('info','starfield');run('fetch','starfield');run('validate','starfield')
     preview=run('preview','starfield')

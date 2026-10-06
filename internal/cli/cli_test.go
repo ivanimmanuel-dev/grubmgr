@@ -76,3 +76,25 @@ func TestErrorsAndPreview(t *testing.T) {
 		t.Fatal(code, err.String())
 	}
 }
+
+func TestDirectCommandsConfirmBeforeApplying(t *testing.T) {
+	p := testutil.Root(t, "debian")
+	call := func(answer string, args ...string) (int, string) {
+		t.Helper()
+		var out, diagnostics bytes.Buffer
+		code := RunWithInput(append([]string{"--root", p.Root}, args...), strings.NewReader(answer), &out, &diagnostics)
+		return code, out.String() + diagnostics.String()
+	}
+	if code, text := call("n\n", "install", "cyberpunk-demo"); code != 2 || !strings.Contains(text, "CANCELLED") {
+		t.Fatal(code, text)
+	}
+	if code, text := call("y\n", "install", "cyberpunk-demo"); code != 0 {
+		t.Fatal(code, text)
+	}
+	if code, text := call("", "--json", "switch", "cyberpunk-demo"); code != 2 || !strings.Contains(text, "CONFIRMATION") {
+		t.Fatal(code, text)
+	}
+	if code, text := call("", "--yes", "--json", "switch", "cyberpunk-demo"); code != 0 || !json.Valid([]byte(text)) {
+		t.Fatal(code, text)
+	}
+}

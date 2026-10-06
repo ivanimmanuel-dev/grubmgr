@@ -44,3 +44,34 @@ func TestPackageDatabaseParsers(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestBootLayoutsAndGRUBUpdates(t *testing.T) {
+	for _, version := range []string{"2.12-9+deb13u3", "2:2.16-2", "2.14-3+kali1", "2.12-1ubuntu7.4"} {
+		if !grub2Version(version) {
+			t.Fatal("GRUB update rejected", version)
+		}
+	}
+	for _, version := range []string{"", "1.99", "3.0", "2.", "custom"} {
+		if grub2Version(version) {
+			t.Fatal("unsupported GRUB version accepted", version)
+		}
+	}
+	for _, mounts := range []string{
+		"30 1 8:2 / / rw,relatime - ext4 /dev/sda2 rw\n",
+		"30 1 8:2 /@ / rw,relatime - btrfs /dev/sda2 rw,subvolid=256,subvol=/@\n",
+		"30 1 8:2 / / rw,relatime - ext4 /dev/sda2 rw\n31 30 8:3 / /boot rw,relatime - ext4 /dev/sda3 rw\n",
+	} {
+		if _, err := bootLayout(mounts, profiles[0]); err != nil {
+			t.Fatal(mounts, err)
+		}
+	}
+	for _, mounts := range []string{
+		"", "30 1 8:2 / / ro - ext4 /dev/sda2 ro\n",
+		"30 1 8:2 / / rw - zfs pool/root rw\n",
+		"30 1 8:2 / / rw - ext4 /dev/sda2 rw\n31 30 8:3 / /boot ro - ext4 /dev/sda3 ro\n",
+	} {
+		if _, err := bootLayout(mounts, profiles[0]); err == nil {
+			t.Fatal("unsupported layout accepted", mounts)
+		}
+	}
+}

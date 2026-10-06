@@ -13,7 +13,6 @@ import (
 	"strings"
 )
 
-const VMMarker = "grubmgr disposable VM v1\n"
 const Defaults = "etc/default/grub"
 const Config = "boot/grub/grub.cfg"
 const Journal = "var/lib/grubmgr"
@@ -48,20 +47,17 @@ func inspect(root string) (Environment, error) {
 	}
 	defer r.Close()
 	read := func(p string) []byte { b, _ := fsx.Read(r, p, 8<<20); return b }
-	if string(read("etc/grubmgr/vm-test")) != VMMarker || strings.TrimSpace(string(read("sys/class/dmi/id/product_name"))) != "grubmgr-disposable-v1" {
-		return refuse("activation is restricted to the disposable test VM")
-	}
-	if err := secure(path.Join(root, "etc/grubmgr/vm-test"), false); err != nil {
-		return refuse(err.Error())
-	}
 	target, err := selectProfile(read("etc/os-release"))
 	if err != nil {
 		return refuse(err.Error())
 	}
 	q.profile, q.Backend = target, target.Backend
 	sb := read("sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c")
+	if _, err := r.Stat("sys/firmware/efi"); err != nil {
+		return refuse("requires a UEFI installation")
+	}
 	if len(sb) != 5 || sb[4] != 0 {
-		return refuse("requires UEFI with Secure Boot reported disabled")
+		return refuse("theme activation requires Secure Boot reported disabled")
 	}
 	q.Firmware = "UEFI; Secure Boot disabled"
 	for _, p := range []string{"boot/grub2/grub.cfg", "boot/loader/loader.conf", "efi/loader/loader.conf", "etc/grub.d/proxifiedScripts", "etc/grub.d/40_custom_proxy", "etc/ostree", "etc/snapper/configs/root"} {
@@ -78,51 +74,21 @@ func inspect(root string) (Environment, error) {
 	if target.PackageManager == "pacman" {
 		q.GRUBVersion = versions["grub"]
 	}
-	if q.GRUBVersion != target.GRUBVersion || (target.PackageManager == "dpkg" && versions["grub2-common"] != q.GRUBVersion) {
-		return refuse("untested GRUB package version: " + q.GRUBVersion)
+	if !grub2Version(q.GRUBVersion) || (target.PackageManager == "dpkg" && versions["grub2-common"] != q.GRUBVersion) {
+		return refuse("requires matching installed GRUB 2 packages: " + q.GRUBVersion)
 	}
 	if versions["grub-customizer"] != "" || versions["grub-btrfs"] != "" || versions["snapper"] != "" {
 		return refuse("GRUB Customizer and snapshot integration are unsupported")
 	}
-	// Arch's standard EFI automount may be idle. Opening the fixed directory
-	// activates that existing mount without writing any EFI files.
-	efi, err := r.Open(strings.TrimPrefix(target.EFIMount, "/"))
-	if err != nil {
-		return refuse("cannot open EFI mount: " + err.Error())
-	}
-	defer efi.Close()
 	mounts := string(read("proc/self/mountinfo"))
-	rootOK, efiOK, bootOK := false, false, !target.SeparateBoot
-	for _, line := range strings.Split(mounts, "\n") {
-		halves := strings.SplitN(line, " - ", 2)
-		if len(halves) != 2 {
-			continue
-		}
-		left, right := strings.Fields(halves[0]), strings.Fields(halves[1])
-		if len(left) < 6 || len(right) < 3 {
-			continue
-		}
-		switch left[4] {
-		case "/":
-			rootOK = right[0] == target.RootFS && strings.Contains(","+left[5]+",", ",rw,") && left[3] == "/"
-			if target.RootFS == "btrfs" && !strings.Contains(","+right[2]+",", ",subvolid=5,") {
-				rootOK = false
-			}
-		case "/boot":
-			if !target.SeparateBoot {
-				return refuse("separate /boot has not been tested for this profile")
-			}
-			bootOK = right[0] == "ext4" && strings.Contains(","+left[5]+",", ",rw,") && left[3] == "/"
-		case target.EFIMount:
-			efiOK = right[0] == "vfat"
-		}
+	target, err = bootLayout(mounts, target)
+	if err != nil {
+		return refuse(err.Error())
 	}
-	if !rootOK || !efiOK || !bootOK {
-		return refuse("requires the tested " + target.RootFS + " root/boot layout and FAT " + target.EFIMount)
-	}
-	q.Layout = target.RootFS + " root including /boot; FAT " + target.EFIMount
+	q.profile = target
+	q.Layout = target.RootFS + " root including /boot"
 	if target.SeparateBoot {
-		q.Layout = "ext4 root; separate ext4 /boot; FAT /boot/efi"
+		q.Layout = target.RootFS + " root; separate /boot"
 	}
 	evidence := []model.File{}
 	if target.PackageManager == "dpkg" {
@@ -192,11 +158,12 @@ func inspect(root string) (Environment, error) {
 	q.Fingerprint = model.Digest(struct {
 		Profile profile
 		Release string
+		Mounts  string
 		Files   []model.File
-	}{target, string(read("etc/os-release")), evidence})
-	q.Status = "SUPPORTED WITH WARNINGS"
-	q.Reason = "experimental activation for the " + target.ID + " VM"
-	q.Warnings = []string{"Supported on the specified QEMU VM profile; physical-machine activation is disabled"}
+	}{target, string(read("etc/os-release")), bootMountEvidence(mounts), evidence})
+	q.Status = "SUPPORTED"
+	q.Reason = "GRUB 2 configuration and theme destination verified for " + target.ID
+	q.Warnings = []string{}
 	return q, nil
 }
 

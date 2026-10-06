@@ -69,8 +69,8 @@ def build(go, output):
             copy(ROOT/name, 'usr/share/doc/grubmgr/'+('copyright' if name == 'LICENSE' else name))
         for name in ['installation.md', 'usage.md', 'package-format.md']:
             copy(ROOT/'docs'/name, 'usr/share/doc/grubmgr/docs/'+name)
-        copy(ROOT/'examples/synthetic-recipe.json',
-             'usr/share/doc/grubmgr/examples/synthetic-recipe.json')
+        copy(ROOT/'examples/local-recipe.json',
+             'usr/share/doc/grubmgr/examples/local-recipe.json')
         for source in (stage/'usr/share/doc/grubmgr').rglob('*.md'):
             source.write_text(source.read_text(encoding='utf-8').replace('](LICENSE)', '](copyright)'),
                               encoding='utf-8')
@@ -97,8 +97,8 @@ Depends: pkexec, polkitd
 Suggests: grub2-common, grub-theme-starfield, bubblewrap, qemu-system-x86, ovmf, xorriso, mtools
 Homepage: https://github.com/ivanimmanuel-dev/grubmgr
 Description: GRUB theme package manager
- Import, validate, preview, switch and roll back reviewed GRUB themes.
- Activation supports specific disposable Debian, Ubuntu, Kali and Arch VMs.
+ Import, validate, preview, switch and roll back GRUB themes.
+ Supports conventional Debian, Ubuntu, Kali and Arch UEFI installations.
 ''')
         (control/'md5sums').write_text(''.join(
             hashlib.md5(p.read_bytes(), usedforsecurity=False).hexdigest()+'  '+p.relative_to(stage).as_posix()+'\n'

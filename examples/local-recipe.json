@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "id": "local/my-theme",
+  "name": "My theme",
+  "author": "Theme author",
+  "project_url": "",
+  "version": "1.0.0",
+  "source": {
+    "provider": "local",
+    "url": "./my-theme",
+    "upstream_revision": "1.0.0"
+  },
+  "theme_root": ".",
+  "entry": "theme.txt",
+  "variants": [],
+  "license": {
+    "spdx": "",
+    "notices": ["LICENSE"],
+    "verified": false,
+    "evidence": ""
+  },
+  "compatibility": {
+    "backends": ["linux-grub"],
+    "architectures": ["amd64"],
+    "firmware": ["uefi"],
+    "requires": ["gfxterm"]
+  },
+  "preview": {"kind": "none"},
+  "recipe_revision": "1",
+  "reviewed": false
+}

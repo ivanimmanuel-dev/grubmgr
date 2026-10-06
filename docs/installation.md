@@ -2,43 +2,49 @@
 
 ## Download and install
 
-Download the package for your system from [GRUB Manager 0.3.0-rc.1](https://github.com/ivanimmanuel-dev/grubmgr/releases/tag/v0.3.0-rc.1):
+Download the package for your system from [GRUB Manager 0.4.0-rc.1](https://github.com/ivanimmanuel-dev/grubmgr/releases/tag/v0.4.0-rc.1):
 
 | System | File |
 | --- | --- |
-| Debian, Ubuntu or Kali · x86-64 | `grubmgr_0.3.0rc1-1_amd64.deb` |
-| Arch · x86-64 | `grubmgr-0.3.0rc1-1-x86_64.pkg.tar.xz` |
+| Debian, Ubuntu or Kali Â· x86-64 | `grubmgr_0.4.0rc1-1_amd64.deb` |
+| Arch Â· x86-64 | `grubmgr-0.4.0rc1-1-x86_64.pkg.tar.xz` |
 
 Download its matching `.sha256` file into the same directory. Check the download before installing:
 
 ```sh
-sha256sum -c grubmgr_0.3.0rc1-1_amd64.deb.sha256
-sudo apt install ./grubmgr_0.3.0rc1-1_amd64.deb
+sha256sum -c grubmgr_0.4.0rc1-1_amd64.deb.sha256
+sudo apt install ./grubmgr_0.4.0rc1-1_amd64.deb
 ```
 
 On Arch:
 
 ```sh
-sha256sum -c grubmgr-0.3.0rc1-1-x86_64.pkg.tar.xz.sha256
-sudo pacman -U ./grubmgr-0.3.0rc1-1-x86_64.pkg.tar.xz
+sha256sum -c grubmgr-0.4.0rc1-1-x86_64.pkg.tar.xz.sha256
+sudo pacman -U ./grubmgr-0.4.0rc1-1-x86_64.pkg.tar.xz
 ```
 
-Then run `grubmgr doctor`. Use the CLI as your ordinary user; Polkit prompts for administrator authentication when needed. Installing the package leaves the selected boot theme unchanged.
+Then run `grubmgr doctor`. Use the CLI as your ordinary user from an active local desktop or console session; Polkit prompts for administrator authentication when needed. Installing the package leaves the selected boot theme unchanged.
 
 ## Supported configurations
 
-This version activates themes in x86-64 QEMU VMs with UEFI and Secure Boot disabled:
+Activation supports conventional x86-64 UEFI installations with Secure Boot disabled:
 
-| Distribution | GRUB package version | Root and boot layout | EFI mount |
-| --- | --- | --- | --- |
-| Debian 13 | `2.12-9+deb13u2` | ext4 root including `/boot` | `/boot/efi` |
-| Ubuntu 24.04 | `2.12-1ubuntu7.3` | ext4 root, separate ext4 `/boot` | `/boot/efi` |
-| Kali rolling | `2.14-2+kali1` | ext4 root including `/boot` | `/boot/efi` |
-| Arch rolling | `2:2.16-1` | Btrfs root, subvolume ID 5, including `/boot` | `/efi` |
+| Distribution | GRUB | Filesystem |
+| --- | --- | --- |
+| Debian 13 | Installed GRUB 2 packages | Writable ext4 or Btrfs |
+| Ubuntu 24.04 | Installed GRUB 2 packages | Writable ext4 or Btrfs |
+| Kali rolling | Installed GRUB 2 packages | Writable ext4 or Btrfs |
+| Arch rolling | Installed GRUB 2 package | Writable ext4 or Btrfs |
 
-Activation requires a guest created by the included [VM setup scripts](https://github.com/ivanimmanuel-dev/grubmgr/tree/v0.3.0-rc.1/scripts/vm). Installing the package alone does not enable activation on an existing VM. Physical-machine and WSL activation are disabled.
+`/boot` may be part of the root filesystem or a separate writable ext4 or Btrfs mount. Configuration uses `/etc/default/grub` and `/boot/grub/grub.cfg`. Theme activation requires a graphical GRUB terminal (`gfxterm`). If the menu is configured for text only, the command reports that setting and restores the previous configuration.
 
-Import and validation work independently of activation. Preview requires Linux and the tools below.
+The helper checks installed packages, file ownership, boot mounts and the configuration generator before changing anything. GRUB package updates within version 2 do not require an application rebuild. Boot and rollback checks run in UEFI QEMU guests.
+
+BIOS boot, enabled or unreadable Secure Boot, other filesystems, immutable systems, GRUB Customizer and snapshot integrations are outside this release. WSL can import and validate themes but cannot activate them. Import and validation also work on Windows; the downloadable packages are for Linux.
+
+## Upgrade from 0.3
+
+Install the new package normally. Existing installed revisions and transaction records are retained. Fetch the current built-in recipe before importing another demo revision. New switches can back up an unmanaged theme; older transactions cannot restore a theme that was never backed up.
 
 ## Preview setup
 

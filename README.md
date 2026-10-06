@@ -1,59 +1,65 @@
 # GRUB Manager
 
-Import, validate, preview and switch GRUB themes from the command line. Keep previous theme revisions and restore a selection with rollback.
+A command-line package manager for GRUB themes. Import community themes, validate their assets, preview them in QEMU and switch your boot menu. Each revision retains its source, file hashes and license notices. Rollback restores a previous theme while keeping current kernel entries.
 
-**0.3.0-rc.1 · Linux VM preview.** Activation supports the [documented Debian, Ubuntu, Kali and Arch QEMU configurations](docs/installation.md#supported-configurations). Physical-machine and WSL activation are disabled.
+**0.4.0-rc.1** supports conventional x86-64 UEFI GRUB installations on Debian 13, Ubuntu 24.04, Kali rolling and Arch rolling. Secure Boot must be disabled. Run `grubmgr doctor` to check your [configuration](docs/installation.md#supported-configurations).
 
 ## Download
 
 | Your system | Package |
 | --- | --- |
-| Debian, Ubuntu or Kali · x86-64 | [Download .deb](https://github.com/ivanimmanuel-dev/grubmgr/releases/download/v0.3.0-rc.1/grubmgr_0.3.0rc1-1_amd64.deb) |
-| Arch · x86-64 | [Download Arch package](https://github.com/ivanimmanuel-dev/grubmgr/releases/download/v0.3.0-rc.1/grubmgr-0.3.0rc1-1-x86_64.pkg.tar.xz) |
+| Debian, Ubuntu or Kali · x86-64 | [Download .deb](https://github.com/ivanimmanuel-dev/grubmgr/releases/download/v0.4.0-rc.1/grubmgr_0.4.0rc1-1_amd64.deb) |
+| Arch · x86-64 | [Download Arch package](https://github.com/ivanimmanuel-dev/grubmgr/releases/download/v0.4.0-rc.1/grubmgr-0.4.0rc1-1-x86_64.pkg.tar.xz) |
 
-[Release details and checksums](https://github.com/ivanimmanuel-dev/grubmgr/releases/tag/v0.3.0-rc.1)
-
-## Install
-
-Debian, Ubuntu or Kali:
+[Release details and checksums](https://github.com/ivanimmanuel-dev/grubmgr/releases/tag/v0.4.0-rc.1)
 
 ```sh
-sudo apt install ./grubmgr_0.3.0rc1-1_amd64.deb
+# Debian, Ubuntu or Kali
+sudo apt install ./grubmgr_0.4.0rc1-1_amd64.deb
+
+# Arch
+sudo pacman -U ./grubmgr-0.4.0rc1-1-x86_64.pkg.tar.xz
 ```
 
-Arch:
+Installing the package leaves your boot menu unchanged. Use `grubmgr` as your ordinary user; Polkit requests administrator authentication for system changes.
+
+## Try a theme
 
 ```sh
-sudo pacman -U ./grubmgr-0.3.0rc1-1-x86_64.pkg.tar.xz
-```
-
-Run `grubmgr doctor` to check your configuration. See [installation and preview setup](docs/installation.md) for requirements.
-
-## Select a theme
-
-```sh
+grubmgr doctor
 grubmgr search
-grubmgr fetch cyberpunk-demo
-grubmgr validate cyberpunk-demo
-grubmgr plan install cyberpunk-demo
+grubmgr install cyberpunk-demo
+grubmgr switch cyberpunk-demo
+grubmgr history
 ```
 
-Read the plan and apply its complete token:
+Each change shows its destination and asks for confirmation. To restore the theme selected before a transaction, run `grubmgr rollback TRANSACTION_ID`.
+
+Local themes work too:
 
 ```sh
-grubmgr apply PLAN_TOKEN
-grubmgr plan switch cyberpunk-demo
+grubmgr install ./my-theme
+grubmgr status
+grubmgr switch THEME_ID
 ```
 
-Apply the switch plan's token to select the theme for the boot menu. Use `grubmgr history` and `grubmgr plan rollback TRANSACTION_ID` to restore a previous selection.
+Use the ID printed by `install` or listed by `status`. Directories and archives with multiple themes need a [recipe](docs/package-format.md) to select the entry and variants.
 
-The catalog includes Cyberpunk Demo and Debian's Starfield theme. Local directories and archives can also be imported for validation and preview.
+## Catalogs and previews
+
+The built-in catalog contains Cyberpunk Demo and Debian's Starfield. You can [add a community catalog](docs/usage.md#community-catalogs) without rebuilding the application. Catalog recipes pin each archive by SHA-256 and retain the author's source links and license notices.
+
+After [setting up the preview tools](docs/installation.md#preview-setup), run:
+
+```sh
+grubmgr preview cyberpunk-demo
+```
 
 ## Help
 
-- [Installation, preview tools and removal](docs/installation.md)
-- [Using themes, variants and rollback](docs/usage.md)
-- [Importing a theme with a recipe](docs/package-format.md)
+- [Installation, requirements and removal](docs/installation.md)
+- [Themes, variants, catalogs and rollback](docs/usage.md)
+- [Recipes and catalog format](docs/package-format.md)
 
 ## License
 

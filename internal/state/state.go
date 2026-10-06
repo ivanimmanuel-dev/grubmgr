@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 type Store struct{ db *sql.DB }
@@ -34,9 +35,10 @@ func Lock(p system.Paths) (func(), error) {
 }
 
 type Snapshot struct {
-	Defaults []byte          `json:"defaults"`
-	Config   []byte          `json:"config"`
-	Packages []model.Package `json:"packages"`
+	Defaults      []byte          `json:"defaults"`
+	Config        []byte          `json:"config"`
+	Packages      []model.Package `json:"packages"`
+	OriginalTheme *model.Manifest `json:"original_theme,omitempty"`
 }
 type Transaction struct {
 	CreatedAt        string   `json:"created_at"`
@@ -211,13 +213,15 @@ func (s *Store) Finish(packages []model.Package, t Transaction) error {
 }
 func Select(packages []model.Package, id string) (model.Package, error) {
 	var found []model.Package
+	name, prefix, hasPrefix := strings.Cut(id, "@")
+	validPrefix := hasPrefix && len(prefix) >= 12 && len(prefix) <= 64 && model.IsDigest(prefix+strings.Repeat("0", 64-len(prefix)))
 	for _, p := range packages {
-		if p.Manifest.ID == id || p.Manifest.Revision == id || p.Manifest.ID+"@"+p.Manifest.Revision == id {
+		if p.Manifest.ID == id || p.Manifest.Revision == id || validPrefix && p.Manifest.ID == name && strings.HasPrefix(p.Manifest.Revision, prefix) {
 			found = append(found, p)
 		}
 	}
 	if len(found) != 1 {
-		return model.Package{}, fmt.Errorf("expected one fetched revision for %q, found %d; use ID@full-revision", id, len(found))
+		return model.Package{}, fmt.Errorf("expected one revision for %q, found %d; use ID@revision (at least 12 hex digits)", id, len(found))
 	}
 	return found[0], nil
 }

@@ -82,7 +82,19 @@ func execute(req Request) (any, error) {
 		if req.Operation == "history" {
 			return db.History()
 		}
-		return db.Packages()
+		packages, err := db.Packages()
+		if err != nil {
+			return nil, err
+		}
+		defaults, err := os.ReadFile("/" + Defaults)
+		if err != nil {
+			return nil, err
+		}
+		theme, ok := themeValue(defaults)
+		if !ok {
+			return nil, fmt.Errorf("ambiguous GRUB_THEME assignment")
+		}
+		return activePackages(packages, theme)
 	}
 	return nil, fmt.Errorf("unsupported operation")
 }
@@ -256,6 +268,9 @@ func apply(req Request, faults transaction.Faults) (state.Transaction, error) {
 		if err := phase("prepared"); err != nil {
 			return err
 		}
+		if err := backupOriginal("/", pl.Before.OriginalTheme); err != nil {
+			return err
+		}
 		if pl.Package != nil {
 			if err := protectedDestination("/" + tx.Destination); err != nil {
 				return err
@@ -317,6 +332,9 @@ func apply(req Request, faults transaction.Faults) (state.Transaction, error) {
 			}
 			if pl.AfterTheme != "" && !strings.Contains(string(bytes), strings.TrimPrefix(pl.AfterTheme, "/boot")) {
 				return fmt.Errorf("candidate does not reference selected theme")
+			}
+			if pl.AfterTheme != "" && !strings.Contains(string(bytes), "terminal_output gfxterm") {
+				return fmt.Errorf("GRUB graphics output is disabled; set GRUB_TERMINAL_OUTPUT to include gfxterm before selecting a theme")
 			}
 		}
 		tx.ExpectedConfig = model.Hash(bytes)

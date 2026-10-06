@@ -44,7 +44,7 @@ func Run(dir string, m model.Manifest) model.Validation {
 		add("ERROR", "MANIFEST_INVALID", "", 0, e.Error())
 	}
 	if !m.License.Verified || m.License.SPDX == "" {
-		add("WARN", "UNKNOWN_LICENSE", "", 0, "No verified package license metadata; activation planning is blocked")
+		add("WARN", "UNKNOWN_LICENSE", "", 0, "License metadata is unknown; check the author's terms before redistributing")
 	}
 	r, e := os.OpenRoot(dir)
 	if e != nil {
@@ -188,7 +188,7 @@ func Run(dir string, m model.Manifest) model.Validation {
 			add("ERROR", "THEME_SYNTAX", entry, line, "Unbalanced component braces")
 		}
 	}
-	add("WARN", "BOOT_UNVERIFIED", "", 0, "Rendering and boot compatibility require a supported VM test")
+	add("WARN", "BOOT_UNVERIFIED", "", 0, "Validation checks theme data; use preview to check rendering")
 	if len(m.Compatibility.Backends) == 0 {
 		add("WARN", "COMPATIBILITY_UNKNOWN", "", 0, "No tested backend is declared")
 	}

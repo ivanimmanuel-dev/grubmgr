@@ -30,7 +30,7 @@ def build(deb, output):
         info = f'''pkgname = grubmgr
 pkgbase = grubmgr
 pkgver = {version}
-pkgdesc = GRUB theme package manager (experimental VM support)
+pkgdesc = GRUB theme package manager
 url = https://github.com/ivanimmanuel-dev/grubmgr
 builddate = {int(epoch)}
 packager = Ivan Immanuel
