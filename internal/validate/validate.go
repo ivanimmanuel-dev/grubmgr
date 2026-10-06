@@ -201,5 +201,12 @@ func Summary(v model.Validation) string {
 			errors++
 		}
 	}
-	return fmt.Sprintf("%d findings, %d errors", len(v.Findings), errors)
+	findingLabel, errorLabel := "findings", "errors"
+	if len(v.Findings) == 1 {
+		findingLabel = "finding"
+	}
+	if errors == 1 {
+		errorLabel = "error"
+	}
+	return fmt.Sprintf("%d %s, %d %s", len(v.Findings), findingLabel, errors, errorLabel)
 }
